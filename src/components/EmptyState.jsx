@@ -41,7 +41,7 @@ export default function EmptyState() {
   return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }} onDragOver={e => e.preventDefault()} onDrop={onDrop}>
       <div style={{ width: 460, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 22, textAlign: 'center' }}>
-        <div style={{ width: 52, height: 52, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 20, color: 'var(--text2)' }}>{'{ }'}</div>
+        <img src="/logo.png" alt="Parsec" width="52" height="52" style={{ borderRadius: 10, display: 'block' }} />
         <div>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>No document loaded</div>
           <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.55 }}>Paste a JSON payload, drop a file, or fetch one from a URL to start inspecting it.</div>

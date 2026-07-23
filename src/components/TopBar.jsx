@@ -48,7 +48,7 @@ export default function TopBar() {
   return (
     <div style={{ height: 52, flex: 'none', display: 'flex', alignItems: 'center', gap: 20, padding: '0 18px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--accent)', color: 'var(--accent-fg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, fontSize: 13 }}>{'{ }'}</div>
+        <img src="/logo.png" alt="" width="26" height="26" style={{ borderRadius: 6, display: 'block', flex: 'none' }} />
         <span style={{ fontWeight: 600, fontSize: 14, letterSpacing: '-.01em' }}>Parsec</span>
       </div>
 
