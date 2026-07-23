@@ -1,0 +1,100 @@
+html, body { margin: 0; padding: 0; }
+* { box-sizing: border-box; }
+#root { min-height: 100vh; }
+::selection { background: var(--accent-soft); }
+textarea { outline: none; }
+
+/* Design tokens — copied verbatim from JSON Viewer & Toolkit.dc.html */
+.theme-light {
+  --bg:#FAFAF9; --surface:#FFFFFF; --surface2:#F6F5F3; --border:#E7E5E4;
+  --text:#1C1C1E; --text2:#6B6B70; --text3:#A8A6A3;
+  --accent:#3B4A6B; --accent-fg:#FFFFFF; --accent-soft:rgba(59,74,107,.09);
+  --danger:#B3261E; --danger-soft:rgba(179,38,30,.07);
+  --added-bg:rgba(58,125,92,.1); --removed-bg:rgba(179,38,30,.07); --changed-bg:rgba(168,118,62,.1);
+  --syn-key:#8A5A2B; --syn-string:#2E7D5B; --syn-number:#2F5AA8; --syn-bool:#A0459A; --syn-null:#9B9B9F;
+  /* duplicate-key highlight: tint only, never repaints the token's own color */
+  --dup-line:rgba(138,90,43,.09); --dup-key:rgba(138,90,43,.20); --dup-ring:#8A5A2B;
+}
+.theme-dark {
+  --bg:#131316; --surface:#1B1B1F; --surface2:#202024; --border:#2C2C31;
+  --text:#EDEDEF; --text2:#8E8E93; --text3:#5C5C60;
+  --accent:#8CA2D6; --accent-fg:#131316; --accent-soft:rgba(140,162,214,.14);
+  --danger:#E5837A; --danger-soft:rgba(229,131,122,.1);
+  --added-bg:rgba(111,199,154,.12); --removed-bg:rgba(229,131,122,.12); --changed-bg:rgba(216,166,110,.12);
+  --syn-key:#D3A56C; --syn-string:#7FCBA4; --syn-number:#8FA8E8; --syn-bool:#D896D0; --syn-null:#6B6B70;
+  --dup-line:rgba(216,166,110,.10); --dup-key:rgba(216,166,110,.24); --dup-ring:#D3A56C;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+button:disabled { opacity: .45; cursor: not-allowed !important; }
+
+/* CodeMirror fits the editor pane and inherits theme colors */
+.cm-editor { height: 100%; background: var(--surface); }
+.cm-editor .cm-scroller { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 20.8px; }
+.cm-editor .cm-gutters { background: var(--surface2); border-right: 1px solid var(--border); color: var(--text3); }
+.cm-editor .cm-content { color: var(--text); caret-color: var(--text); }
+.cm-editor .cm-activeLine { background: var(--accent-soft); }
+.cm-editor .cm-activeLineGutter { background: var(--accent-soft); }
+.cm-editor.cm-focused { outline: none; }
+.cm-editor .cm-lintRange-error { text-decoration: wavy underline var(--danger); }
+/* duplicate-key highlight (toggled from the editor toolbar badge) */
+.cm-editor .cm-dup-line { background: var(--dup-line); box-shadow: inset 2px 0 0 var(--dup-ring); }
+.cm-editor .cm-dup-key {
+  background: var(--dup-key); border-radius: 3px;
+  box-shadow: inset 0 0 0 1px var(--dup-ring), 0 1px 0 var(--dup-ring);
+  font-weight: 600;
+}
+
+/* ReactFlow theming */
+.react-flow__attribution { display: none; }
+.rf-node {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  background: var(--surface); color: var(--text);
+  border: 1.3px solid var(--border); border-radius: 7px; padding: 8px 12px;
+  box-sizing: border-box; overflow: hidden;
+}
+.rf-node.branch { border-color: var(--accent); cursor: pointer; }
+.rf-node .rf-leaf {
+  color: var(--text2); font-size: 11px; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.rf-node .rf-syn-string { color: var(--syn-string); }
+.rf-node .rf-syn-number { color: var(--syn-number); }
+.rf-node .rf-syn-bool { color: var(--syn-bool); }
+.rf-node .rf-syn-null { color: var(--syn-null); }
+.rf-node .rf-syn-key { color: var(--syn-key); }
+
+/* --- flow expand/collapse animation ---
+   Node transforms only transition while a collapse toggle is settling, so
+   dragging a node still tracks the cursor 1:1. */
+.rf-animating .react-flow__node { transition: transform .3s cubic-bezier(.4, 0, .2, 1); }
+.rf-node { animation: rfNodeIn .24s cubic-bezier(.2, .9, .3, 1); transform-origin: left center; }
+@keyframes rfNodeIn {
+  from { opacity: 0; transform: scale(.9) translateX(-10px); }
+  to   { opacity: 1; transform: none; }
+}
+.rf-node .rf-leaf { animation: rfLeafIn .2s ease-out both; }
+@keyframes rfLeafIn { from { opacity: 0; } to { opacity: 1; } }
+.rf-toggle { transition: background .15s, color .15s, transform .2s; }
+.rf-toggle:hover { background: var(--accent-soft) !important; color: var(--accent) !important; }
+
+/* --- flowchart side panel --- */
+.flow-panel {
+  transition: width .26s cubic-bezier(.4, 0, .2, 1);
+  overflow: hidden; flex: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rf-animating .react-flow__node, .rf-node, .rf-node .rf-leaf, .flow-panel { transition: none; animation: none; }
+}
+
+/* thin scrollbars */
+*::-webkit-scrollbar { width: 10px; height: 10px; cursor: default; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border); border-radius: 5px; cursor: pointer;
+  border: 2px solid transparent; background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--text3); background-clip: padding-box; cursor: pointer; }
+*::-webkit-scrollbar-thumb:active { background: var(--text2); background-clip: padding-box; }
+*::-webkit-scrollbar-track { background: transparent; cursor: default; }
+*::-webkit-scrollbar-corner { background: transparent; }
