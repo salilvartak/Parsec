@@ -15,6 +15,23 @@
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#3B4A6B" />
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131316" />
 
+  <!-- Paint the page background before React mounts, so a dark-mode load does
+       not flash white. Mirrors the store's rule: saved choice wins, else OS. -->
+  <style>
+    html { background: #FAFAF9; color-scheme: light; }
+    @media (prefers-color-scheme: dark) { html { background: #131316; color-scheme: dark; } }
+  </style>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('parsec.theme');
+        var dark = saved === 'dark' || (saved !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.style.background = dark ? '#131316' : '#FAFAF9';
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+      } catch (e) { /* storage blocked — the CSS above already handles it */ }
+    })();
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 </head>

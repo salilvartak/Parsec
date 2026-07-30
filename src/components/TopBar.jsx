@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useJsonStore, useRawText } from '../store/useJsonStore.js';
 import { buildShareUrl } from '../lib/share.js';
+import { toggleThemeAnimated } from '../lib/themeTransition.js';
 
 const iconBtn = {
   width: 32, height: 32, border: '1px solid var(--border)', background: 'var(--surface)',
@@ -13,8 +14,11 @@ export default function TopBar() {
   const indent = useJsonStore(s => s.indent);
   const setMode = useJsonStore(s => s.setMode);
   const toggleTheme = useJsonStore(s => s.toggleTheme);
+  const themeIsExplicit = useJsonStore(s => s.themeIsExplicit);
+  const setTheme = useJsonStore(s => s.setTheme);
+  const matchSystemTheme = useJsonStore(s => s.useSystemTheme);
   const setIndent = useJsonStore(s => s.setIndent);
-  const resetToEmpty = useJsonStore(s => s.resetToEmpty);
+  const addTab = useJsonStore(s => s.addTab);
   const history = useJsonStore(s => s.history);
   const loadHistoryEntry = useJsonStore(s => s.loadHistoryEntry);
   const clearHistory = useJsonStore(s => s.clearHistory);
@@ -26,7 +30,7 @@ export default function TopBar() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [copied, setCopied] = useState('');
 
-  const tabDefs = [['editor', 'Editor'], ['converters', 'Converters'], ['flowchart', 'Flowchart'], ['diff', 'Diff']];
+  const tabDefs = [['editor', 'Editor'], ['converters', 'Converters'], ['flowchart', 'Flowchart'], ['diff', 'Diff'], ['markdown', 'Markdown']];
 
   const flash = (msg) => { setCopied(msg); setTimeout(() => setCopied(''), 1600); };
 
@@ -88,11 +92,11 @@ export default function TopBar() {
         )}
       </div>
 
-      <button onClick={resetToEmpty} title="New document" style={iconBtn}>
+      <button onClick={addTab} title="New document (new tab)" style={iconBtn}>
         <svg width="15" height="15" viewBox="0 0 15 15"><path d="M7.5 2v11M2 7.5h11" stroke="var(--text2)" strokeWidth="1.5" strokeLinecap="round" /></svg>
       </button>
 
-      <button onClick={toggleTheme} title="Toggle theme" style={iconBtn}>
+      <button onClick={(e) => toggleThemeAnimated(toggleTheme, { x: e.clientX, y: e.clientY })} title={themeIsExplicit ? `Theme: ${theme} (pinned)` : `Theme: ${theme} (following system)`} style={iconBtn}>
         {theme === 'light'
           ? <svg width="15" height="15" viewBox="0 0 15 15"><circle cx="7.5" cy="7.5" r="3" fill="none" stroke="var(--text2)" strokeWidth="1.5" /><path d="M7.5 1v1.6M7.5 12.4V14M1 7.5h1.6M12.4 7.5H14M3 3l1.2 1.2M10.8 10.8L12 12M12 3l-1.2 1.2M4.2 10.8L3 12" stroke="var(--text2)" strokeWidth="1.4" strokeLinecap="round" /></svg>
           : <svg width="15" height="15" viewBox="0 0 15 15"><path d="M12.8 9.3A5.6 5.6 0 016 2.3a5.7 5.7 0 106.8 7z" fill="var(--text2)" /></svg>}
@@ -116,6 +120,16 @@ export default function TopBar() {
                 {indent === v && <span style={{ color: 'var(--accent)' }}>✓</span>}
               </button>
             ))}
+            <div style={dropHeader}><span>Appearance</span></div>
+            {[['system', 'Match system'], ['light', 'Light'], ['dark', 'Dark']].map(([v, label]) => {
+              const active = v === 'system' ? !themeIsExplicit : (themeIsExplicit && theme === v);
+              return (
+                <button key={v} onClick={(e) => toggleThemeAnimated(() => (v === 'system' ? matchSystemTheme() : setTheme(v)), { x: e.clientX, y: e.clientY })} style={{ ...dropItem, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ font: "500 12px 'Inter',sans-serif", color: 'var(--text)' }}>{label}</span>
+                  {active && <span style={{ color: 'var(--accent)' }}>✓</span>}
+                </button>
+              );
+            })}
           </Dropdown>
         )}
       </div>

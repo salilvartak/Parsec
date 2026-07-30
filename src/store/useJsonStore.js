@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { parseJson, findDuplicateKeys } from '../lib/parse.js';
-import { SAMPLE, DIFF_SAMPLE_A, DIFF_SAMPLE_B } from '../lib/sample.js';
+import { SAMPLE, DIFF_SAMPLE_A, DIFF_SAMPLE_B, MARKDOWN_SAMPLE } from '../lib/sample.js';
 import { readShareParam, clearShareParam } from '../lib/share.js';
 
 const HISTORY_KEY = 'parsec.history';
@@ -17,8 +17,17 @@ function loadHistory() {
 function saveHistory(h) {
   try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); } catch { /* quota */ }
 }
+// Theme resolution: an explicit user choice wins and is persisted; otherwise we
+// follow the OS setting and keep following it as the OS changes.
+export function systemTheme() {
+  try { return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; } catch { return 'light'; }
+}
 function loadTheme() {
-  try { return localStorage.getItem(THEME_KEY) || 'light'; } catch { return 'light'; }
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === 'light' || saved === 'dark') return { theme: saved, themeIsExplicit: true };
+  } catch { /* storage blocked */ }
+  return { theme: systemTheme(), themeIsExplicit: false };
 }
 
 // Parse a text and return the derived slice.
@@ -52,8 +61,11 @@ export const useJsonStore = create((set, get) => ({
   ...firstDerived,
 
   // --- ui ---
-  mode: 'editor',           // editor | converters | flowchart | diff | empty
-  theme: loadTheme(),
+  mode: 'editor',           // editor | converters | flowchart | diff | markdown
+  ...loadTheme(),           // { theme, themeIsExplicit }
+
+  // markdown viewer (independent scratch doc)
+  markdownText: MARKDOWN_SAMPLE,
   indent: 2,                // 2 | 4 | 'tab'
   selectedPath: 'root',
 
@@ -90,11 +102,27 @@ export const useJsonStore = create((set, get) => ({
   // ---------- actions ----------
   setMode: (mode) => set({ mode }),
 
+  // Manual toggle pins the theme — the OS no longer overrides it.
   toggleTheme: () => set(s => {
     const theme = s.theme === 'light' ? 'dark' : 'light';
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* */ }
-    return { theme };
+    return { theme, themeIsExplicit: true };
   }),
+
+  // Pin a specific theme.
+  setTheme: (theme) => set(() => {
+    try { localStorage.setItem(THEME_KEY, theme); } catch { /* */ }
+    return { theme, themeIsExplicit: true };
+  }),
+
+  // Drop back to following the OS.
+  useSystemTheme: () => set(() => {
+    try { localStorage.removeItem(THEME_KEY); } catch { /* */ }
+    return { theme: systemTheme(), themeIsExplicit: false };
+  }),
+
+  // Called by the OS media-query listener; ignored once the user has chosen.
+  applySystemTheme: (theme) => set(s => (s.themeIsExplicit ? {} : { theme })),
 
   setIndent: (indent) => set({ indent }),
   setSelectedPath: (selectedPath) => set({ selectedPath }),
@@ -179,6 +207,9 @@ export const useJsonStore = create((set, get) => ({
   // ---- diff ----
   setDiffA: (diffA) => set({ diffA }),
   setDiffB: (diffB) => set({ diffB }),
+
+  // ---- markdown ----
+  setMarkdownText: (markdownText) => set({ markdownText }),
 
   // ---- history ----
   pushHistory: () => set(s => {
