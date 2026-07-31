@@ -31,6 +31,31 @@ textarea { outline: none; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* --- brand loader (hexagon + braces) — used app-wide via <Loader/> and the
+   boot splash in index.html. Classes are pl-* prefixed to avoid collisions. --- */
+.pl-svg { filter: drop-shadow(0 0 16px rgba(128, 148, 216, 0.25)); }
+.pl-hex {
+  stroke-dasharray: 1400; stroke-dashoffset: 1400;
+  animation: plDrawHex 3.5s cubic-bezier(.4, 0, .2, 1) infinite; transform-origin: center;
+}
+.pl-brace-left  { transform-origin: 176px 258px; animation: plBreatheLeft  2.5s ease-in-out infinite; }
+.pl-brace-right { transform-origin: 336px 258px; animation: plBreatheRight 2.5s ease-in-out infinite; }
+.pl-line { stroke-dasharray: 100; stroke-dashoffset: 100; animation: plType 2.5s ease-out infinite; }
+.pl-line-1 { animation-delay: .2s; }
+.pl-line-2 { animation-delay: .5s; }
+.pl-line-3 { animation-delay: .8s; }
+.pl-dot { transform-origin: 290px 298px; animation: plPulse 2.5s ease-in-out infinite; animation-delay: 1.1s; }
+@keyframes plDrawHex { 0% { stroke-dashoffset: 1400; opacity: .4; } 50% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: -1400; opacity: .4; } }
+@keyframes plBreatheLeft  { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-8px); } }
+@keyframes plBreatheRight { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(8px); } }
+@keyframes plType { 0% { stroke-dashoffset: 100; opacity: 0; } 30%, 80% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: -100; opacity: 0; } }
+@keyframes plPulse { 0%, 100% { transform: scale(0); opacity: 0; } 30%, 75% { transform: scale(1.3); opacity: 1; } 85% { transform: scale(1); opacity: .8; } }
+@media (prefers-reduced-motion: reduce) {
+  .pl-hex, .pl-brace-left, .pl-brace-right, .pl-line, .pl-dot { animation: none; }
+  .pl-hex, .pl-line { stroke-dashoffset: 0; }
+  .pl-dot { opacity: 1; transform: none; }
+}
+
 /* tab-swap swipe: new pane slides in from the side it sits on in the tab bar */
 .pane-swipe { will-change: transform, opacity; }
 .pane-swipe-right { animation: paneInRight .26s cubic-bezier(.4, 0, .2, 1); }
@@ -38,6 +63,18 @@ textarea { outline: none; }
 @keyframes paneInRight { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
 @keyframes paneInLeft  { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .pane-swipe { animation: none; } }
+
+/* --- right-hand drawer (History / Settings) --- */
+.drawer { animation: drawerIn .24s cubic-bezier(.32, .72, 0, 1); }
+.drawer-scrim { animation: scrimIn .24s ease-out; }
+@keyframes drawerIn { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* "Animations: off" in settings — kill motion app-wide, same as the OS setting */
+.no-anim *, .no-anim *::before, .no-anim *::after {
+  animation: none !important;
+  transition: none !important;
+}
 
 /* View-Transition theme swap: kill the default cross-fade so the JS-driven
    circular clip on ::view-transition-new(root) is the only motion. The old
@@ -49,9 +86,17 @@ textarea { outline: none; }
 
 button:disabled { opacity: .45; cursor: not-allowed !important; }
 
+/* A clicked toolbar button keeps DOM focus, and the UA focus ring then reads as
+   a stuck "selected" state. Ring only for keyboard/AT focus. */
+button:focus, select:focus, [role="switch"]:focus { outline: none; }
+button:focus-visible, select:focus-visible, [role="switch"]:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+
 /* CodeMirror fits the editor pane and inherits theme colors */
 .cm-editor { height: 100%; background: var(--surface); }
-.cm-editor .cm-scroller { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 20.8px; }
+/* font-size/line-height come from the settings drawer (see App.jsx) */
+.cm-editor .cm-scroller { font-family: 'JetBrains Mono', monospace; font-size: var(--cm-font, 12.5px); line-height: var(--cm-line, 20.8px); }
 .cm-editor .cm-gutters { background: var(--surface2); border-right: 1px solid var(--border); color: var(--text3); }
 .cm-editor .cm-content { color: var(--text); caret-color: var(--text); }
 .cm-editor .cm-activeLine { background: var(--accent-soft); }
@@ -60,6 +105,10 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .cm-editor .cm-lintRange-error { text-decoration: wavy underline var(--danger); }
 /* duplicate-key highlight (toggled from the editor toolbar badge) */
 .cm-editor .cm-dup-line { background: var(--dup-line); box-shadow: inset 2px 0 0 var(--dup-ring); }
+/* inline line-diff highlights in the A/B diff editors */
+.cm-editor .cm-diff-add { background: var(--added-bg); box-shadow: inset 3px 0 0 var(--syn-string); }
+.cm-editor .cm-diff-del { background: var(--removed-bg); box-shadow: inset 3px 0 0 var(--danger); }
+.cm-editor .cm-diff-chg { background: var(--changed-bg); box-shadow: inset 3px 0 0 var(--syn-key); }
 .cm-editor .cm-dup-key {
   background: var(--dup-key); border-radius: 3px;
   box-shadow: inset 0 0 0 1px var(--dup-ring), 0 1px 0 var(--dup-ring);
@@ -106,6 +155,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 }
 @media (prefers-reduced-motion: reduce) {
   .rf-animating .react-flow__node, .rf-node, .rf-node .rf-leaf, .flow-panel { transition: none; animation: none; }
+  .drawer, .drawer-scrim { animation: none; }
 }
 
 /* --- markdown preview --- */
@@ -168,7 +218,8 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
   /* iOS zooms the page whenever a focused field is under 16px. Editors are
      exempt — CodeMirror is not a form field and its own gestures handle zoom. */
   input, textarea, select { font-size: 16px !important; }
-  .cm-editor .cm-scroller { font-size: 12.5px; line-height: 19.5px; }
+  /* phones get a slightly tighter line box, but still honour the chosen size */
+  .cm-editor .cm-scroller { line-height: calc(var(--cm-font, 12.5px) * 1.56); }
   .cm-editor .cm-gutters { min-width: 30px; }
 
   /* Finger targets: the design's 26–28px controls are below the 44px guidance,

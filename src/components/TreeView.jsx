@@ -42,13 +42,14 @@ function flatten(value, expanded) {
   return rows;
 }
 
-// Default-expand branches shallower than depth 2 (matches the design).
-function defaultExpanded(value) {
+// Default-expand branches shallower than `maxDepth` (2 in the design, settable
+// from the settings drawer).
+function defaultExpanded(value, maxDepth = 2) {
   const set = new Set();
   function walk(val, path, depth) {
     const type = typeOf(val);
     if (type !== 'object' && type !== 'array') return;
-    if (depth < 2) set.add(path);
+    if (depth < maxDepth) set.add(path);
     const entries = type === 'array'
       ? val.map((v, i) => [v, `${path}[${i}]`])
       : Object.keys(val).map(k => [val[k], path ? `${path}.${k}` : k]);
@@ -75,11 +76,14 @@ function allBranchPaths(value) {
 
 export default function TreeView({ value, height }) {
   const isMobile = useIsMobile();
-  const rowH = isMobile ? ROW_H_TOUCH : ROW_H;
+  const treeDepth = useJsonStore(s => s.settings.treeDepth);
+  const compact = useJsonStore(s => s.settings.density === 'compact');
+  const fontSize = useJsonStore(s => s.settings.fontSize);
+  const rowH = isMobile ? (compact ? 24 : ROW_H_TOUCH) : (compact ? 18 : ROW_H);
   const selectedPath = useJsonStore(s => s.selectedPath);
   const setSelectedPath = useJsonStore(s => s.setSelectedPath);
   const matches = useJsonStore(s => s.jsonPathMatches);
-  const [expanded, setExpanded] = useState(() => defaultExpanded(value));
+  const [expanded, setExpanded] = useState(() => defaultExpanded(value, treeDepth));
   const [hovered, setHovered] = useState(null);
   const [copied, setCopied] = useState(null);
   const listRef = useRef(null);
@@ -88,7 +92,8 @@ export default function TreeView({ value, height }) {
   const valKey = useMemo(() => {
     try { return JSON.stringify(value).length + ':' + typeOf(value); } catch { return 'x'; }
   }, [value]);
-  useEffect(() => { setExpanded(defaultExpanded(value)); }, [valKey]); // eslint-disable-line
+  // also re-runs when the auto-expand depth setting changes
+  useEffect(() => { setExpanded(defaultExpanded(value, treeDepth)); }, [valKey, treeDepth]); // eslint-disable-line
 
   // when jsonpath matches change, expand ancestors of first match + scroll to it
   const matchSet = useMemo(() => new Set(matches), [matches]);
@@ -196,7 +201,7 @@ export default function TreeView({ value, height }) {
           itemSize={rowH}
           width="100%"
           overscanCount={12}
-          style={{ font: "400 12.5px 'JetBrains Mono',monospace" }}
+          style={{ font: `400 ${fontSize}px 'JetBrains Mono',monospace` }}
         >
           {Row}
         </FixedSizeList>

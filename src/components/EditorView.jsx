@@ -1,9 +1,12 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
+import { xml } from '@codemirror/lang-xml';
+import { EditorView as CmEditorView } from '@codemirror/view';
 import { useJsonStore, useRawText } from '../store/useJsonStore.js';
-import { cmExtensions, duplicateHighlighter } from '../lib/cmTheme.js';
+import { cmExtensions, cmBase, duplicateHighlighter } from '../lib/cmTheme.js';
 import { formatJson, minifyJson } from '../lib/format.js';
+import { formatXml, minifyXml, xmlTextToJson } from '../lib/document.js';
 import { queryJsonPath } from '../lib/jsonpath.js';
 import { unwrapStringified, wrapStringified } from '../lib/converters/wrap.js';
 import TreeView from './TreeView.jsx';
@@ -20,9 +23,12 @@ export default function EditorView() {
   const replaceRawText = useJsonStore(s => s.replaceRawText);
   const parsedValue = useJsonStore(s => s.parsedValue);
   const parseError = useJsonStore(s => s.parseError);
+  const format = useJsonStore(s => s.format);
+  const isXml = format === 'xml';
   const duplicateKeys = useJsonStore(s => s.duplicateKeys);
   const isEmpty = useJsonStore(s => s.isEmpty);
-  const indent = useJsonStore(s => s.indent);
+  const settings = useJsonStore(s => s.settings);
+  const indent = settings.indent;
   const theme = useJsonStore(s => s.theme);
   const selectedPath = useJsonStore(s => s.selectedPath);
   const setJsonPathResults = useJsonStore(s => s.setJsonPathResults);
@@ -53,9 +59,17 @@ export default function EditorView() {
     histRef.current = setTimeout(() => pushHistory(), 1500);
   };
 
-  const doFormat = () => { const r = formatJson(rawText, indent); if (r.success) replaceRawText(r.data); else parseActive(); };
-  const doMinify = () => { const r = minifyJson(rawText); if (r.success) replaceRawText(r.data); else parseActive(); };
+  const indentStr = indent === 'tab' ? '\t' : ' '.repeat(indent || 2);
+  const doFormat = () => {
+    const r = isXml ? formatXml(rawText, indentStr) : formatJson(rawText, indent, settings.sortKeys);
+    if (r.success) replaceRawText(r.data); else parseActive();
+  };
+  const doMinify = () => {
+    const r = isXml ? minifyXml(rawText) : minifyJson(rawText);
+    if (r.success) replaceRawText(r.data); else parseActive();
+  };
   const doValidate = () => parseActive();
+  const doXmlToJson = () => { const r = xmlTextToJson(rawText, indent === 'tab' ? '\t' : (indent || 2)); if (r.success) replaceRawText(r.data); };
 
   const doUnwrap = () => { const r = unwrapStringified(rawText); if (r.success) replaceRawText(r.data); };
   const doWrap = () => { const r = wrapStringified(rawText); if (r.success) replaceRawText(r.data); };
@@ -81,6 +95,11 @@ export default function EditorView() {
     // remeasure when the phone swaps which pane is mounted
   }, [mobilePane, isMobile]);
 
+  const wrapExtensions = useMemo(
+    () => (settings.lineWrap ? [CmEditorView.lineWrapping] : []),
+    [settings.lineWrap],
+  );
+
   // duplicate-key highlighting: only mount the decorator while the badge is toggled on
   const dupExtensions = useMemo(
     () => (showDups && duplicateKeys.length ? [duplicateHighlighter(duplicateKeys)] : []),
@@ -89,11 +108,19 @@ export default function EditorView() {
   const dupRepeatCount = duplicateKeys.filter(d => !d.first).length;
   const dupLines = [...new Set(duplicateKeys.map(d => d.line))];
 
+  // language + linting follow the detected format; XML drops the JSON linter so
+  // it doesn't get "invalid JSON" squiggles.
+  const langExtensions = useMemo(
+    () => (isXml ? [xml(), ...cmBase] : [json(), ...cmExtensions]),
+    [isXml],
+  );
+
+  const fmtName = isXml ? 'XML' : 'JSON';
   const hasError = !!parseError;
-  const statusLabel = isEmpty ? 'Empty' : hasError ? 'Error' : 'Valid';
+  const statusLabel = isEmpty ? 'Empty' : hasError ? 'Error' : `Valid ${fmtName}`;
   const statusColor = hasError ? 'var(--danger)' : isEmpty ? 'var(--text3)' : 'var(--syn-string)';
   const statusBg = hasError ? 'var(--danger-soft)' : 'var(--accent-soft)';
-  const errorText = parseError ? `Invalid JSON — ${parseError.message} (line ${parseError.line}, column ${parseError.col})` : '';
+  const errorText = parseError ? `Invalid ${fmtName} — ${parseError.message} (line ${parseError.line}, column ${parseError.col})` : '';
   const breadcrumbSegs = selectedPath.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
 
   return (
@@ -118,8 +145,14 @@ export default function EditorView() {
         <button onClick={doFormat} style={tBtn}>Format</button>
         <button onClick={doMinify} style={tBtn}>Minify</button>
         <button onClick={doValidate} style={tBtn}>Validate</button>
-        <button onClick={doWrap} style={tBtn} title="Stringify + escape for embedding">Wrap</button>
-        <button onClick={doUnwrap} disabled={!canUnwrap} style={tBtn} title="Re-parse stringified JSON">Unwrap</button>
+        {isXml ? (
+          <button onClick={doXmlToJson} style={tBtn} title="Convert this XML document to JSON">To JSON</button>
+        ) : (
+          <>
+            <button onClick={doWrap} style={tBtn} title="Stringify + escape for embedding">Wrap</button>
+            <button onClick={doUnwrap} disabled={!canUnwrap} style={tBtn} title="Re-parse stringified JSON">Unwrap</button>
+          </>
+        )}
         <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px', flex: 'none' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, font: "500 11.5px 'JetBrains Mono',monospace", padding: '0 9px', height: 26, borderRadius: 5, background: statusBg, color: statusColor, flex: 'none' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor }} />{statusLabel}
@@ -162,9 +195,14 @@ export default function EditorView() {
               onChange={onChange}
               height="100%"
               theme={theme === 'dark' ? 'dark' : 'light'}
-              extensions={[json(), ...cmExtensions, ...dupExtensions]}
-              basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }}
-              style={{ height: '100%', fontSize: 12.5 }}
+              extensions={[...langExtensions, ...wrapExtensions, ...dupExtensions]}
+              basicSetup={{
+                lineNumbers: settings.lineNumbers,
+                foldGutter: settings.foldGutter,
+                highlightActiveLine: settings.highlightActiveLine,
+                bracketMatching: true,
+              }}
+              style={{ height: '100%' }}
             />
           </div>
           {hasError && (
@@ -196,7 +234,7 @@ export default function EditorView() {
             {isEmpty
               ? (
                 <div style={{ color: 'var(--text3)', font: "400 12.5px 'Inter',sans-serif", padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
-                  <span>Empty document — paste JSON in the {isMobile ? 'JSON tab' : 'editor on the left'} to inspect it.</span>
+                  <span>Empty document — paste JSON or XML in the {isMobile ? 'editor tab' : 'editor on the left'} to inspect it.</span>
                   <div style={{ display: 'flex', gap: 14 }}>
                     <button onClick={loadSample} style={{ border: 'none', background: 'transparent', color: 'var(--accent)', font: "500 12px 'Inter',sans-serif", cursor: 'pointer', padding: 0 }}>Load sample</button>
                     <button onClick={resetToEmpty} style={{ border: 'none', background: 'transparent', color: 'var(--accent)', font: "500 12px 'Inter',sans-serif", cursor: 'pointer', padding: 0 }}>Open import panel</button>
@@ -208,7 +246,7 @@ export default function EditorView() {
                 : <TreeView value={parsedValue} height={treeH - 20} />}
           </div>
 
-          <StatsPanel value={parsedValue} rawText={rawText} />
+          {settings.showStats && <StatsPanel value={parsedValue} rawText={rawText} />}
         </div>
         )}
       </div>

@@ -1,11 +1,13 @@
 import React, { useRef, useState } from 'react';
 import { useJsonStore } from '../store/useJsonStore.js';
 import { useIsMobile } from '../lib/useMedia.js';
+import { LoaderOverlay } from './Loader.jsx';
 
 export default function EmptyState() {
   const isMobile = useIsMobile();
   const loadFromText = useJsonStore(s => s.loadFromText);
   const loadSample = useJsonStore(s => s.loadSample);
+  const theme = useJsonStore(s => s.theme);
   const fileRef = useRef(null);
   const [url, setUrl] = useState('');
   const [fetching, setFetching] = useState(false);
@@ -41,9 +43,10 @@ export default function EmptyState() {
   };
 
   return (
-    <div style={{ flex: 1, display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center', padding: isMobile ? '22px 16px 40px' : 40, overflowY: 'auto' }} onDragOver={e => e.preventDefault()} onDrop={onDrop}>
+    <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center', padding: isMobile ? '22px 16px 40px' : 40, overflowY: 'auto' }} onDragOver={e => e.preventDefault()} onDrop={onDrop}>
+      {fetching && <LoaderOverlay label={`Fetching ${url.replace(/^https?:\/\//, '').slice(0, 40)}…`} />}
       <div style={{ width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? 16 : 22, textAlign: 'center' }}>
-        <img src="/logo.png" alt="Parsec" width="52" height="52" style={{ borderRadius: 10, display: 'block' }} />
+        <img src={theme === 'dark' ? '/logo-dark.png' : '/logo.png'} alt="Parsec" width="52" height="52" style={{ borderRadius: 10, display: 'block' }} />
         <div>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>No document loaded</div>
           <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.55 }}>Paste a JSON payload, drop a file, or fetch one from a URL to start inspecting it.</div>

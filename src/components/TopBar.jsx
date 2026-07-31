@@ -14,31 +14,30 @@ const iconBtnTouch = { ...iconBtn, width: 38, height: 38, borderRadius: 9 };
 export default function TopBar() {
   const mode = useJsonStore(s => s.mode);
   const theme = useJsonStore(s => s.theme);
-  const indent = useJsonStore(s => s.indent);
   const setMode = useJsonStore(s => s.setMode);
   const toggleTheme = useJsonStore(s => s.toggleTheme);
   const themeIsExplicit = useJsonStore(s => s.themeIsExplicit);
-  const setTheme = useJsonStore(s => s.setTheme);
-  const matchSystemTheme = useJsonStore(s => s.useSystemTheme);
-  const setIndent = useJsonStore(s => s.setIndent);
   const addTab = useJsonStore(s => s.addTab);
-  const history = useJsonStore(s => s.history);
-  const loadHistoryEntry = useJsonStore(s => s.loadHistoryEntry);
-  const clearHistory = useJsonStore(s => s.clearHistory);
+  const sidePanel = useJsonStore(s => s.sidePanel);
+  const togglePanel = useJsonStore(s => s.togglePanel);
+  const closePanel = useJsonStore(s => s.closePanel);
   const activeDoc = useJsonStore(s => s.documents.find(d => d.id === s.activeDocId));
   const rawText = useRawText();
 
   const isMobile = useIsMobile();
   const btn = isMobile ? iconBtnTouch : iconBtn;
 
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [copied, setCopied] = useState('');
 
   const tabDefs = [['editor', 'Editor'], ['converters', 'Converters'], ['flowchart', 'Flowchart'], ['diff', 'Diff'], ['markdown', 'Markdown']];
 
   const flash = (msg) => { setCopied(msg); setTimeout(() => setCopied(''), 1600); };
+
+  // A mouse/touch click leaves DOM focus on the icon button, and every browser
+  // paints some ring there — it reads as a stuck "selected" toolbar button.
+  // Keyboard activation has no pointer, so its ring survives.
+  const blurOnClick = (e) => { if (e.detail !== 0) e.currentTarget.blur(); };
 
   const doCopy = async (text) => { try { await navigator.clipboard.writeText(text); flash('Copied'); } catch { flash('Copy failed'); } };
   const download = () => {
@@ -77,7 +76,9 @@ export default function TopBar() {
     <>
     <div style={{ height: isMobile ? 56 : 52, flex: 'none', display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 20, padding: isMobile ? '0 10px' : '0 18px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
-        <img src="/logo.png" alt="" width="26" height="26" style={{ borderRadius: 6, display: 'block', flex: 'none' }} />
+        {/* the dark-theme mark is a separate file — the light one disappears on
+            the dark surface */}
+        <img src={theme === 'dark' ? '/logo-dark.png' : '/logo.png'} alt="" width="26" height="26" style={{ borderRadius: 6, display: 'block', flex: 'none' }} />
         {!isMobile && <span style={{ fontWeight: 600, fontSize: 14, letterSpacing: '-.01em' }}>Parsec</span>}
       </div>
 
@@ -88,73 +89,37 @@ export default function TopBar() {
 
       {copied && <span style={{ font: "500 12px 'Inter',sans-serif", color: 'var(--syn-string)' }}>{copied}</span>}
 
-      {/* History */}
-      <div style={{ position: 'relative' }}>
-        <button title="History" onClick={() => { setHistoryOpen(o => !o); setExportOpen(false); setSettingsOpen(false); }} style={btn}>
-          <svg width="15" height="15" viewBox="0 0 15 15"><circle cx="7.5" cy="7.5" r="5.5" fill="none" stroke="var(--text2)" strokeWidth="1.4" /><path d="M7.5 4.3v3.5l2.3 1.4" stroke="var(--text2)" strokeWidth="1.4" strokeLinecap="round" fill="none" /></svg>
-        </button>
-        {historyOpen && (
-          <Dropdown onClose={() => setHistoryOpen(false)} width={320}>
-            <div style={dropHeader}>
-              <span>Recent documents</span>
-              {history.length > 0 && <button onClick={clearHistory} style={linkBtn}>Clear</button>}
-            </div>
-            {history.length === 0 && <div style={{ padding: '14px 12px', color: 'var(--text3)', font: "400 12px 'Inter',sans-serif" }}>No history yet.</div>}
-            {history.map(h => (
-              <button key={h.id} onClick={() => { loadHistoryEntry(h.id); setHistoryOpen(false); }} style={dropItem}>
-                <div style={{ font: "500 12px 'Inter',sans-serif", color: 'var(--text)' }}>{h.name}</div>
-                <div style={{ font: "400 11px 'JetBrains Mono',monospace", color: 'var(--text3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.preview}</div>
-              </button>
-            ))}
-          </Dropdown>
-        )}
-      </div>
+      {/* History — opens the right-hand drawer */}
+      <button title="History" aria-expanded={sidePanel === 'history'}
+        onClick={(e) => { blurOnClick(e); togglePanel('history'); setExportOpen(false); }}
+        style={sidePanel === 'history' ? activeBtn(btn) : btn}>
+        <svg width="15" height="15" viewBox="0 0 15 15"><circle cx="7.5" cy="7.5" r="5.5" fill="none" stroke={sidePanel === 'history' ? 'var(--accent)' : 'var(--text2)'} strokeWidth="1.4" /><path d="M7.5 4.3v3.5l2.3 1.4" stroke={sidePanel === 'history' ? 'var(--accent)' : 'var(--text2)'} strokeWidth="1.4" strokeLinecap="round" fill="none" /></svg>
+      </button>
 
-      <button onClick={addTab} title="New document (new tab)" style={btn}>
+      <button onClick={(e) => { blurOnClick(e); addTab(); }} title="New document (new tab)" style={btn}>
         <svg width="15" height="15" viewBox="0 0 15 15"><path d="M7.5 2v11M2 7.5h11" stroke="var(--text2)" strokeWidth="1.5" strokeLinecap="round" /></svg>
       </button>
 
-      <button onClick={(e) => toggleThemeAnimated(toggleTheme, { x: e.clientX, y: e.clientY })} title={themeIsExplicit ? `Theme: ${theme} (pinned)` : `Theme: ${theme} (following system)`} style={btn}>
+      <button onClick={(e) => { blurOnClick(e); toggleThemeAnimated(toggleTheme, { x: e.clientX, y: e.clientY }); }} title={themeIsExplicit ? `Theme: ${theme} (pinned)` : `Theme: ${theme} (following system)`} style={btn}>
         {theme === 'light'
           ? <svg width="15" height="15" viewBox="0 0 15 15"><circle cx="7.5" cy="7.5" r="3" fill="none" stroke="var(--text2)" strokeWidth="1.5" /><path d="M7.5 1v1.6M7.5 12.4V14M1 7.5h1.6M12.4 7.5H14M3 3l1.2 1.2M10.8 10.8L12 12M12 3l-1.2 1.2M4.2 10.8L3 12" stroke="var(--text2)" strokeWidth="1.4" strokeLinecap="round" /></svg>
           : <svg width="15" height="15" viewBox="0 0 15 15"><path d="M12.8 9.3A5.6 5.6 0 016 2.3a5.7 5.7 0 106.8 7z" fill="var(--text2)" /></svg>}
       </button>
 
-      {/* Settings */}
-      <div style={{ position: 'relative' }}>
-        <button title="Settings" onClick={() => { setSettingsOpen(o => !o); setExportOpen(false); setHistoryOpen(false); }} style={btn}>
-          {/* toothed cog — deliberately not the ray-and-circle shape used by the theme toggle */}
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {/* Settings — opens the right-hand drawer */}
+      <button title="Settings" aria-expanded={sidePanel === 'settings'}
+        onClick={(e) => { blurOnClick(e); togglePanel('settings'); setExportOpen(false); }}
+        style={sidePanel === 'settings' ? activeBtn(btn) : btn}>
+        {/* toothed cog — deliberately not the ray-and-circle shape used by the theme toggle */}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={sidePanel === 'settings' ? 'var(--accent)' : 'var(--text2)'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 008.6 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 8.6a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-          </svg>
-        </button>
-        {settingsOpen && (
-          <Dropdown onClose={() => setSettingsOpen(false)} width={220}>
-            <div style={dropHeader}><span>Indentation</span></div>
-            {[[2, '2 spaces'], [4, '4 spaces'], ['tab', 'Tabs']].map(([v, label]) => (
-              <button key={String(v)} onClick={() => setIndent(v)} style={{ ...dropItem, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ font: "500 12px 'Inter',sans-serif", color: 'var(--text)' }}>{label}</span>
-                {indent === v && <span style={{ color: 'var(--accent)' }}>✓</span>}
-              </button>
-            ))}
-            <div style={dropHeader}><span>Appearance</span></div>
-            {[['system', 'Match system'], ['light', 'Light'], ['dark', 'Dark']].map(([v, label]) => {
-              const active = v === 'system' ? !themeIsExplicit : (themeIsExplicit && theme === v);
-              return (
-                <button key={v} onClick={(e) => toggleThemeAnimated(() => (v === 'system' ? matchSystemTheme() : setTheme(v)), { x: e.clientX, y: e.clientY })} style={{ ...dropItem, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ font: "500 12px 'Inter',sans-serif", color: 'var(--text)' }}>{label}</span>
-                  {active && <span style={{ color: 'var(--accent)' }}>✓</span>}
-                </button>
-              );
-            })}
-          </Dropdown>
-        )}
-      </div>
+        </svg>
+      </button>
 
       {/* Export */}
       <div style={{ position: 'relative' }}>
-        <button title="Export" onClick={() => { setExportOpen(o => !o); setSettingsOpen(false); setHistoryOpen(false); }}
+        <button title="Export" onClick={(e) => { blurOnClick(e); setExportOpen(o => !o); closePanel(); }}
           style={isMobile
             ? btn
             : { display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 7, padding: '0 12px', height: 32, cursor: 'pointer', font: "500 12.5px 'Inter',sans-serif", color: 'var(--text)' }}>
@@ -193,7 +158,6 @@ function Dropdown({ children, onClose, width }) {
   );
 }
 
-const dropHeader = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', borderBottom: '1px solid var(--border)', font: "600 11px 'Inter',sans-serif", color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.03em' };
-const dropItem = { display: 'flex', flexDirection: 'column', gap: 2, width: '100%', textAlign: 'left', border: 'none', borderBottom: '1px solid var(--border)', background: 'transparent', padding: '9px 12px', cursor: 'pointer' };
 const dropItemRow = { display: 'block', width: '100%', textAlign: 'left', border: 'none', borderBottom: '1px solid var(--border)', background: 'transparent', padding: '10px 12px', cursor: 'pointer', font: "500 12px 'Inter',sans-serif", color: 'var(--text)' };
-const linkBtn = { border: 'none', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', font: "500 11px 'Inter',sans-serif" };
+// A toolbar button whose drawer is currently open.
+const activeBtn = (base) => ({ ...base, background: 'var(--accent-soft)', borderColor: 'var(--accent)' });

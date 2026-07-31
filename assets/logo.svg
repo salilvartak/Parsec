@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="JSON toolkit logo">
+  <title>JSON toolkit logo</title>
+
+  <g fill="none" stroke="#8094D8" stroke-width="13" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- Hexagon shell (pointy-top, rounded vertices) -->
+    <path d="M 283.7 96
+             L 380.7 152 Q 408.4 168 408.4 200
+             L 408.4 312 Q 408.4 344 380.7 360
+             L 283.7 416 Q 256 432 228.3 416
+             L 131.3 360 Q 103.6 344 103.6 312
+             L 103.6 200 Q 103.6 168 131.3 152
+             L 228.3 96  Q 256 80  283.7 96 Z" />
+
+    <!-- Left brace -->
+    <path d="M 202 174
+             C 187 174, 176 181, 176 196
+             L 176 230
+             C 176 244, 166 254, 152 258
+             C 166 262, 176 272, 176 286
+             L 176 320
+             C 176 335, 187 342, 202 342" />
+
+    <!-- Right brace -->
+    <path d="M 310 174
+             C 325 174, 336 181, 336 196
+             L 336 230
+             C 336 244, 346 254, 360 258
+             C 346 262, 336 272, 336 286
+             L 336 320
+             C 336 335, 325 342, 310 342" />
+
+    <!-- Content lines -->
+    <path d="M 208 230 H 308" />
+    <path d="M 208 264 H 302" />
+    <path d="M 208 298 H 264" />
+  </g>
+
+  <!-- Trailing dot -->
+  <circle cx="290" cy="298" r="8" fill="#8094D8" />
+</svg>

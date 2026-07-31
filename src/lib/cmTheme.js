@@ -34,6 +34,9 @@ export const jsonLinter = linter((view) => {
 });
 
 export const cmExtensions = [baseTheme, syntaxHighlighting(jsonHighlight), jsonLinter];
+// Same look without the JSON linter — for XML (or any non-JSON) documents, so
+// they don't get red "invalid JSON" squiggles.
+export const cmBase = [baseTheme, syntaxHighlighting(jsonHighlight)];
 
 // Paint every line that holds a duplicate key, plus the key token itself.
 // `ranges` is [{ from, to }] of key-token offsets in the CURRENT document text —
@@ -56,6 +59,28 @@ export function duplicateHighlighter(ranges) {
     return b.finish();
   };
 
+  return ViewPlugin.fromClass(class {
+    constructor(view) { this.decorations = build(view); }
+    update(u) { if (u.docChanged || u.viewportChanged) this.decorations = build(u.view); }
+  }, { decorations: v => v.decorations });
+}
+
+// Paint whole-line backgrounds for a line-level diff. `statusByLine` maps a
+// 1-based line number to 'add' | 'del' | 'chg'. Used by the Diff view to show
+// changes inside the A/B editors themselves.
+const DIFF_LINE_CLASS = { add: 'cm-diff-add', del: 'cm-diff-del', chg: 'cm-diff-chg' };
+export function lineDiffHighlighter(statusByLine) {
+  const build = (view) => {
+    const b = new RangeSetBuilder();
+    const doc = view.state.doc;
+    for (let ln = 1; ln <= doc.lines; ln++) {
+      const s = statusByLine.get(ln);
+      if (!s) continue;
+      const line = doc.line(ln);
+      b.add(line.from, line.from, Decoration.line({ class: DIFF_LINE_CLASS[s] }));
+    }
+    return b.finish();
+  };
   return ViewPlugin.fromClass(class {
     constructor(view) { this.decorations = build(view); }
     update(u) { if (u.docChanged || u.viewportChanged) this.decorations = build(u.view); }
