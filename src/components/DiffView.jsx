@@ -5,6 +5,7 @@ import { useJsonStore } from '../store/useJsonStore.js';
 import { parseJson } from '../lib/parse.js';
 import { cmExtensions } from '../lib/cmTheme.js';
 import { diffJson, flatten, changeRows, changeGroups, collapseUnchanged } from '../lib/diff.js';
+import { useIsMobile } from '../lib/useMedia.js';
 
 const ROW_H = 21;
 const MIN_EDITOR_H = 120;
@@ -27,8 +28,15 @@ export default function DiffView() {
   const theme = useJsonStore(s => s.theme);
   const indent = useJsonStore(s => s.indent);
 
+  const isMobile = useIsMobile();
+  const tBtn = isMobile ? { ...btn, height: 34, padding: '0 12px', borderRadius: 8 } : btn;
   const [showInputs, setShowInputs] = useState(true);
-  const [layout, setLayout] = useState('tree'); // 'tree' | 'split' — semantic tree is the headline view
+  const [layoutPref, setLayout] = useState('tree'); // 'tree' | 'split' — semantic tree is the headline view
+  // Side-by-side needs two readable columns; a phone has room for one, so the
+  // semantic tree is the only layout offered there.
+  const layout = isMobile ? 'tree' : layoutPref;
+  // Which editor a phone shows — both at once leaves neither usable.
+  const [mobileDoc, setMobileDoc] = useState('a');
   const [onlyChanges, setOnlyChanges] = useState(false);
   // which change types are shown; clicking a stat pill toggles its type
   const [filters, setFilters] = useState({ added: true, removed: true, changed: true, type: true });
@@ -99,19 +107,21 @@ export default function DiffView() {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* toolbar */}
-      <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 2, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, padding: 3 }}>
-          {[['tree', 'Tree'], ['split', 'Side by side']].map(([id, label]) => (
-            <button key={id} onClick={() => setLayout(id)} style={{
-              border: 'none', background: layout === id ? 'var(--accent-soft)' : 'transparent',
-              color: layout === id ? 'var(--accent)' : 'var(--text2)', font: "500 11.5px 'Inter',sans-serif",
-              padding: '5px 11px', borderRadius: 5, cursor: 'pointer',
-            }}>{label}</button>
-          ))}
-        </div>
-        <button onClick={() => setShowInputs(v => !v)} style={btn}>{showInputs ? 'Hide editors' : 'Edit documents'}</button>
-        <button onClick={formatBoth} style={btn} disabled={!bothValid} title="Pretty-print both">Format both</button>
-        <button onClick={swap} style={btn} title="Swap A and B">Swap A ↔ B</button>
+      <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: isMobile ? '8px 10px' : '8px 14px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexWrap: 'wrap' }}>
+        {!isMobile && (
+          <div style={{ display: 'flex', gap: 2, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, padding: 3 }}>
+            {[['tree', 'Tree'], ['split', 'Side by side']].map(([id, label]) => (
+              <button key={id} onClick={() => setLayout(id)} style={{
+                border: 'none', background: layout === id ? 'var(--accent-soft)' : 'transparent',
+                color: layout === id ? 'var(--accent)' : 'var(--text2)', font: "500 11.5px 'Inter',sans-serif",
+                padding: '5px 11px', borderRadius: 5, cursor: 'pointer',
+              }}>{label}</button>
+            ))}
+          </div>
+        )}
+        <button onClick={() => setShowInputs(v => !v)} style={tBtn}>{showInputs ? 'Hide editors' : 'Edit documents'}</button>
+        <button onClick={formatBoth} style={tBtn} disabled={!bothValid} title="Pretty-print both">{isMobile ? 'Format' : 'Format both'}</button>
+        <button onClick={swap} style={tBtn} title="Swap A and B">Swap A ↔ B</button>
 
         <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 2px' }} />
 
@@ -119,8 +129,8 @@ export default function DiffView() {
           <input type="checkbox" checked={onlyChanges} onChange={e => setOnlyChanges(e.target.checked)} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
           Only changes
         </label>
-        <button onClick={() => jump(-1)} style={{ ...btn, padding: '0 8px' }} disabled={!changes.length} title="Previous change">↑</button>
-        <button onClick={() => jump(1)} style={{ ...btn, padding: '0 8px' }} disabled={!changes.length} title="Next change">↓</button>
+        <button onClick={() => jump(-1)} style={{ ...tBtn, padding: '0 10px' }} disabled={!changes.length} title="Previous change">↑</button>
+        <button onClick={() => jump(1)} style={{ ...tBtn, padding: '0 10px' }} disabled={!changes.length} title="Next change">↓</button>
         <span style={{ font: "400 11px 'JetBrains Mono',monospace", color: 'var(--text3)' }}>{changes.length ? `${cursor >= 0 ? changes.indexOf(cursor) + 1 : 0}/${changes.length}` : '—'}</span>
 
         <div style={{ flex: 1 }} />
@@ -136,7 +146,27 @@ export default function DiffView() {
       </div>
 
       {/* editors */}
-      {showInputs && (
+      {showInputs && (isMobile ? (
+        /* one editor at a time on a phone, picked by an A/B switch */
+        <div style={{ flex: 'none', display: 'flex', flexDirection: 'column', height: 'min(42dvh, 300px)', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ flex: 'none', display: 'flex', gap: 4, padding: '6px 10px', background: 'var(--surface2)', borderBottom: '1px solid var(--border)' }}>
+            {[['a', 'A · before', aBad], ['b', 'B · after', bBad]].map(([id, label, bad]) => (
+              <button key={id} onClick={() => setMobileDoc(id)} style={{
+                flex: 1, height: 30, borderRadius: 7, cursor: 'pointer',
+                border: `1px solid ${mobileDoc === id ? 'var(--accent)' : 'var(--border)'}`,
+                background: mobileDoc === id ? 'var(--accent-soft)' : 'var(--surface)',
+                color: bad ? 'var(--danger)' : (mobileDoc === id ? 'var(--accent)' : 'var(--text2)'),
+                font: "500 11.5px 'Inter',sans-serif",
+              }}>{label}{bad ? ' · invalid' : ''}</button>
+            ))}
+          </div>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+            {mobileDoc === 'a'
+              ? <EditorPane label="Document A" sub="before" bad={aBad} err={pa.error} value={diffA} onChange={setDiffA} theme={theme} />
+              : <EditorPane label="Document B" sub="after" bad={bBad} err={pb.error} value={diffB} onChange={setDiffB} theme={theme} />}
+          </div>
+        </div>
+      ) : (
         <>
           <div style={{ display: 'flex', flex: 'none', height: editorH, borderBottom: '1px solid var(--border)' }}>
             <EditorPane label="Document A" sub="before" bad={aBad} err={pa.error} value={diffA} onChange={setDiffA} theme={theme} border />
@@ -146,7 +176,7 @@ export default function DiffView() {
             <div style={{ width: 34, height: 3, borderRadius: 2, background: 'var(--border)' }} />
           </div>
         </>
-      )}
+      ))}
 
       {/* result */}
       {!bothValid ? (

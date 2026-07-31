@@ -8,8 +8,10 @@ import { queryJsonPath } from '../lib/jsonpath.js';
 import { unwrapStringified, wrapStringified } from '../lib/converters/wrap.js';
 import TreeView from './TreeView.jsx';
 import StatsPanel from './StatsPanel.jsx';
+import { useIsMobile } from '../lib/useMedia.js';
 
-const toolBtn = { display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 6, padding: '0 10px', height: 28, cursor: 'pointer', font: "500 12px 'Inter',sans-serif", color: 'var(--text)' };
+const toolBtn = { display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 6, padding: '0 10px', height: 28, cursor: 'pointer', font: "500 12px 'Inter',sans-serif", color: 'var(--text)', flex: 'none' };
+const toolBtnTouch = { ...toolBtn, height: 34, padding: '0 13px', borderRadius: 8 };
 
 export default function EditorView() {
   const rawText = useRawText();
@@ -29,6 +31,11 @@ export default function EditorView() {
   const pushHistory = useJsonStore(s => s.pushHistory);
   const loadSample = useJsonStore(s => s.loadSample);
   const resetToEmpty = useJsonStore(s => s.resetToEmpty);
+
+  const isMobile = useIsMobile();
+  const tBtn = isMobile ? toolBtnTouch : toolBtn;
+  // Phone can't show editor and tree at once — one at a time, switched here.
+  const [mobilePane, setMobilePane] = useState('editor'); // 'editor' | 'tree'
 
   const [query, setQuery] = useState('');
   const [showDups, setShowDups] = useState(false);
@@ -71,7 +78,8 @@ export default function EditorView() {
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, []);
+    // remeasure when the phone swaps which pane is mounted
+  }, [mobilePane, isMobile]);
 
   // duplicate-key highlighting: only mount the decorator while the badge is toggled on
   const dupExtensions = useMemo(
@@ -90,15 +98,30 @@ export default function EditorView() {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* mobile pane switch — editor and tree can't share a phone screen */}
+      {isMobile && (
+        <div style={{ flex: 'none', display: 'flex', gap: 4, padding: '7px 10px 0', background: 'var(--surface)' }}>
+          {[['editor', 'JSON'], ['tree', 'Tree']].map(([id, label]) => (
+            <button key={id} onClick={() => setMobilePane(id)} style={{
+              flex: 1, height: 34, borderRadius: 8, cursor: 'pointer',
+              border: `1px solid ${mobilePane === id ? 'var(--accent)' : 'var(--border)'}`,
+              background: mobilePane === id ? 'var(--accent-soft)' : 'var(--surface2)',
+              color: mobilePane === id ? 'var(--accent)' : 'var(--text2)',
+              font: "500 12.5px 'Inter',sans-serif",
+            }}>{label}</button>
+          ))}
+        </div>
+      )}
+
       {/* toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 16px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-        <button onClick={doFormat} style={toolBtn}>Format</button>
-        <button onClick={doMinify} style={toolBtn}>Minify</button>
-        <button onClick={doValidate} style={toolBtn}>Validate</button>
-        <button onClick={doWrap} style={toolBtn} title="Stringify + escape for embedding">Wrap</button>
-        <button onClick={doUnwrap} disabled={!canUnwrap} style={toolBtn} title="Re-parse stringified JSON">Unwrap</button>
-        <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, font: "500 11.5px 'JetBrains Mono',monospace", padding: '0 9px', height: 26, borderRadius: 5, background: statusBg, color: statusColor }}>
+      <div className={isMobile ? 'hscroll' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: isMobile ? '8px 10px' : '9px 16px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flex: 'none' }}>
+        <button onClick={doFormat} style={tBtn}>Format</button>
+        <button onClick={doMinify} style={tBtn}>Minify</button>
+        <button onClick={doValidate} style={tBtn}>Validate</button>
+        <button onClick={doWrap} style={tBtn} title="Stringify + escape for embedding">Wrap</button>
+        <button onClick={doUnwrap} disabled={!canUnwrap} style={tBtn} title="Re-parse stringified JSON">Unwrap</button>
+        <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px', flex: 'none' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, font: "500 11.5px 'JetBrains Mono',monospace", padding: '0 9px', height: 26, borderRadius: 5, background: statusBg, color: statusColor, flex: 'none' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor }} />{statusLabel}
         </div>
         {dupRepeatCount > 0 && (
@@ -107,7 +130,7 @@ export default function EditorView() {
             title={`${showDups ? 'Hide' : 'Show'} duplicate keys in the editor\n\n` + duplicateKeys.filter(d => !d.first).map(d => `line ${d.line}  ${d.path} → "${d.key}"`).join('\n')}
             style={{
               display: 'flex', alignItems: 'center', gap: 6, font: "500 11.5px 'JetBrains Mono',monospace",
-              padding: '0 9px', height: 26, borderRadius: 5, cursor: 'pointer',
+              padding: '0 9px', height: 26, borderRadius: 5, cursor: 'pointer', flex: 'none', whiteSpace: 'nowrap',
               background: showDups ? 'var(--syn-key)' : 'var(--changed-bg)',
               color: showDups ? 'var(--accent-fg)' : 'var(--syn-key)',
               border: `1px solid ${showDups ? 'var(--syn-key)' : 'transparent'}`,
@@ -117,17 +140,22 @@ export default function EditorView() {
           </button>
         )}
         <div style={{ flex: 1 }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, font: "400 12px 'JetBrains Mono',monospace", color: 'var(--text2)' }}>
-          <span style={{ color: 'var(--text3)' }}>jsonpath</span>
-          {breadcrumbSegs.map((seg, i) => (
-            <React.Fragment key={i}><span style={{ color: 'var(--text3)' }}>›</span><span style={{ color: 'var(--text)' }}>{seg}</span></React.Fragment>
-          ))}
-        </div>
+        {/* the selected-path breadcrumb is desktop-only — on a phone it would
+            push the action buttons off the strip */}
+        {!isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, font: "400 12px 'JetBrains Mono',monospace", color: 'var(--text2)' }}>
+            <span style={{ color: 'var(--text3)' }}>jsonpath</span>
+            {breadcrumbSegs.map((seg, i) => (
+              <React.Fragment key={i}><span style={{ color: 'var(--text3)' }}>›</span><span style={{ color: 'var(--text)' }}>{seg}</span></React.Fragment>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         {/* left: editor */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border)', position: 'relative', minWidth: 0 }}>
+        {(!isMobile || mobilePane === 'editor') && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: isMobile ? 'none' : '1px solid var(--border)', position: 'relative', minWidth: 0 }}>
           <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
             <CodeMirror
               value={rawText}
@@ -146,13 +174,17 @@ export default function EditorView() {
             </div>
           )}
         </div>
+        )}
 
         {/* right: search + tree + stats */}
+        {(!isMobile || mobilePane === 'tree') && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', background: 'var(--surface2)', display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface)', overflow: 'hidden' }}>
               <span style={{ font: "400 12px 'JetBrains Mono',monospace", color: 'var(--text3)', padding: '0 8px', alignSelf: 'center' }}>$</span>
-              <input value={query} onChange={e => runQuery(e.target.value)} placeholder="JSONPath  e.g. $.data.order.items[*].sku"
+              <input value={query} onChange={e => runQuery(e.target.value)}
+                inputMode="text" autoCapitalize="off" autoCorrect="off" spellCheck={false}
+                placeholder={isMobile ? 'JSONPath  e.g. $.items[*].sku' : 'JSONPath  e.g. $.data.order.items[*].sku'}
                 style={{ flex: 1, border: 'none', background: 'transparent', color: 'var(--text)', font: "400 12px 'JetBrains Mono',monospace", padding: '6px 8px', outline: 'none' }} />
               {query && <button onClick={() => runQuery('')} style={{ border: 'none', background: 'transparent', color: 'var(--text3)', cursor: 'pointer', padding: '0 10px' }}>✕</button>}
             </div>
@@ -164,7 +196,7 @@ export default function EditorView() {
             {isEmpty
               ? (
                 <div style={{ color: 'var(--text3)', font: "400 12.5px 'Inter',sans-serif", padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
-                  <span>Empty document — paste JSON on the left to inspect it.</span>
+                  <span>Empty document — paste JSON in the {isMobile ? 'JSON tab' : 'editor on the left'} to inspect it.</span>
                   <div style={{ display: 'flex', gap: 14 }}>
                     <button onClick={loadSample} style={{ border: 'none', background: 'transparent', color: 'var(--accent)', font: "500 12px 'Inter',sans-serif", cursor: 'pointer', padding: 0 }}>Load sample</button>
                     <button onClick={resetToEmpty} style={{ border: 'none', background: 'transparent', color: 'var(--accent)', font: "500 12px 'Inter',sans-serif", cursor: 'pointer', padding: 0 }}>Open import panel</button>
@@ -178,6 +210,7 @@ export default function EditorView() {
 
           <StatsPanel value={parsedValue} rawText={rawText} />
         </div>
+        )}
       </div>
     </div>
   );

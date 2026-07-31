@@ -9,6 +9,7 @@ import { json } from '@codemirror/lang-json';
 import { useJsonStore, useRawText } from '../store/useJsonStore.js';
 import { cmExtensions } from '../lib/cmTheme.js';
 import { buildFlow, layout } from '../lib/flow.js';
+import { useIsMobile } from '../lib/useMedia.js';
 
 const PANEL_W = 380;
 
@@ -70,6 +71,7 @@ function allBranchPaths(value) {
 }
 
 function FlowInner() {
+  const isMobile = useIsMobile();
   const parsedValue = useJsonStore(s => s.parsedValue);
   const isEmpty = useJsonStore(s => s.isEmpty);
   const parseError = useJsonStore(s => s.parseError);
@@ -162,14 +164,14 @@ function FlowInner() {
     graphPane = (
       <div className={animating ? 'rf-animating' : undefined} style={{ flex: 1, position: 'relative', background: 'var(--surface2)', minHeight: 0, minWidth: 0 }}>
         {/* toolbar overlay */}
-        <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 6, display: 'flex', gap: 6 }}>
-          <button onClick={expandAll} style={ovBtn}>Expand all</button>
-          <button onClick={collapseAll} style={ovBtn}>Collapse all</button>
-          <button onClick={() => setDirection(d => d === 'LR' ? 'TB' : 'LR')} style={ovBtn} title="Toggle layout direction">{direction === 'LR' ? 'Horizontal' : 'Vertical'}</button>
+        <div style={{ position: 'absolute', top: 10, left: 10, right: 10, zIndex: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <button onClick={expandAll} style={ovBtn}>{isMobile ? 'Expand' : 'Expand all'}</button>
+          <button onClick={collapseAll} style={ovBtn}>{isMobile ? 'Collapse' : 'Collapse all'}</button>
+          <button onClick={() => setDirection(d => d === 'LR' ? 'TB' : 'LR')} style={ovBtn} title="Toggle layout direction">{direction === 'LR' ? (isMobile ? '↔' : 'Horizontal') : (isMobile ? '↕' : 'Vertical')}</button>
           <button onClick={() => fitView({ padding: 0.2, duration: 300 })} style={ovBtn}>Fit</button>
         </div>
         {built.truncated && (
-          <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 6, background: 'var(--changed-bg)', color: 'var(--syn-key)', border: '1px solid var(--border)', borderRadius: 7, padding: '6px 12px', font: "500 11.5px 'Inter',sans-serif" }}>
+          <div style={{ position: 'absolute', ...(isMobile ? { bottom: 12, right: 12 } : { top: 12, right: 12 }), zIndex: 6, background: 'var(--changed-bg)', color: 'var(--syn-key)', border: '1px solid var(--border)', borderRadius: 7, padding: '6px 12px', font: "500 11.5px 'Inter',sans-serif" }}>
             Graph truncated to {built.count} nodes.
           </div>
         )}
@@ -199,10 +201,17 @@ function FlowInner() {
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-      {/* left-edge JSON panel — editable, collapsed by default */}
-      <div className="flow-panel" style={{ width: panelOpen ? PANEL_W : 0, borderRight: panelOpen ? '1px solid var(--border)' : 'none', background: 'var(--surface)' }}>
-        <div style={{ width: PANEL_W, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+      {/* left-edge JSON panel — editable, collapsed by default. On a phone it
+          floats over the graph instead of squeezing it into nothing. */}
+      <div className={isMobile ? undefined : 'flow-panel'}
+        style={isMobile
+          ? {
+            position: 'absolute', inset: 0, zIndex: 20, background: 'var(--surface)',
+            display: panelOpen ? 'block' : 'none',
+          }
+          : { width: panelOpen ? PANEL_W : 0, borderRight: panelOpen ? '1px solid var(--border)' : 'none', background: 'var(--surface)' }}>
+        <div style={{ width: isMobile ? '100%' : PANEL_W, height: '100%', display: 'flex', flexDirection: 'column' }}>
           <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px 0 12px', height: 38, borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>
             <span style={{ font: "600 11px 'Inter',sans-serif", color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.03em' }}>JSON</span>
             <span style={{ font: "400 11px 'JetBrains Mono',monospace", color: parseError ? 'var(--danger)' : 'var(--text3)' }}>
@@ -228,7 +237,7 @@ function FlowInner() {
       {/* always-visible rail to reopen */}
       {!panelOpen && (
         <button onClick={() => setPanelOpen(true)} title="Show JSON" style={{
-          flex: 'none', width: 30, border: 'none', borderRight: '1px solid var(--border)', background: 'var(--surface)',
+          flex: 'none', width: isMobile ? 38 : 30, border: 'none', borderRight: '1px solid var(--border)', background: 'var(--surface)',
           cursor: 'pointer', color: 'var(--text2)', display: 'flex', flexDirection: 'column', alignItems: 'center',
           justifyContent: 'center', gap: 8, padding: 0,
         }}>

@@ -2,11 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useJsonStore, useRawText } from '../store/useJsonStore.js';
 import { buildShareUrl } from '../lib/share.js';
 import { toggleThemeAnimated } from '../lib/themeTransition.js';
+import { useIsMobile } from '../lib/useMedia.js';
 
 const iconBtn = {
   width: 32, height: 32, border: '1px solid var(--border)', background: 'var(--surface)',
   borderRadius: 7, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
 };
+// Phones get a 38px square so the target clears the finger-size guidance.
+const iconBtnTouch = { ...iconBtn, width: 38, height: 38, borderRadius: 9 };
 
 export default function TopBar() {
   const mode = useJsonStore(s => s.mode);
@@ -24,6 +27,9 @@ export default function TopBar() {
   const clearHistory = useJsonStore(s => s.clearHistory);
   const activeDoc = useJsonStore(s => s.documents.find(d => d.id === s.activeDocId));
   const rawText = useRawText();
+
+  const isMobile = useIsMobile();
+  const btn = isMobile ? iconBtnTouch : iconBtn;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -49,22 +55,34 @@ export default function TopBar() {
     setExportOpen(false);
   };
 
+  const modeSwitch = (
+    <div className={isMobile ? 'hscroll' : undefined}
+      style={isMobile
+        ? { flex: 'none', display: 'flex', gap: 4, padding: '6px 12px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }
+        : { display: 'flex', gap: 2, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 3 }}>
+      {tabDefs.map(([id, label]) => (
+        <button key={id} onClick={() => setMode(id)} style={{
+          border: isMobile ? '1px solid var(--border)' : 'none',
+          background: mode === id ? 'var(--accent-soft)' : (isMobile ? 'var(--surface2)' : 'transparent'),
+          borderColor: isMobile && mode === id ? 'var(--accent)' : 'var(--border)',
+          color: mode === id ? 'var(--accent)' : 'var(--text2)', font: "500 12.5px 'Inter',sans-serif",
+          padding: isMobile ? '8px 14px' : '6px 13px', borderRadius: isMobile ? 8 : 6, cursor: 'pointer',
+          flex: 'none', whiteSpace: 'nowrap',
+        }}>{label}</button>
+      ))}
+    </div>
+  );
+
   return (
-    <div style={{ height: 52, flex: 'none', display: 'flex', alignItems: 'center', gap: 20, padding: '0 18px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', position: 'relative' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <>
+    <div style={{ height: isMobile ? 56 : 52, flex: 'none', display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 20, padding: isMobile ? '0 10px' : '0 18px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
         <img src="/logo.png" alt="" width="26" height="26" style={{ borderRadius: 6, display: 'block', flex: 'none' }} />
-        <span style={{ fontWeight: 600, fontSize: 14, letterSpacing: '-.01em' }}>Parsec</span>
+        {!isMobile && <span style={{ fontWeight: 600, fontSize: 14, letterSpacing: '-.01em' }}>Parsec</span>}
       </div>
 
-      <div style={{ display: 'flex', gap: 2, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 3 }}>
-        {tabDefs.map(([id, label]) => (
-          <button key={id} onClick={() => setMode(id)} style={{
-            border: 'none', background: mode === id ? 'var(--accent-soft)' : 'transparent',
-            color: mode === id ? 'var(--accent)' : 'var(--text2)', font: "500 12.5px 'Inter',sans-serif",
-            padding: '6px 13px', borderRadius: 6, cursor: 'pointer',
-          }}>{label}</button>
-        ))}
-      </div>
+      {/* On a phone the mode pills move to their own swipeable row below. */}
+      {!isMobile && modeSwitch}
 
       <div style={{ flex: 1 }} />
 
@@ -72,7 +90,7 @@ export default function TopBar() {
 
       {/* History */}
       <div style={{ position: 'relative' }}>
-        <button title="History" onClick={() => { setHistoryOpen(o => !o); setExportOpen(false); setSettingsOpen(false); }} style={iconBtn}>
+        <button title="History" onClick={() => { setHistoryOpen(o => !o); setExportOpen(false); setSettingsOpen(false); }} style={btn}>
           <svg width="15" height="15" viewBox="0 0 15 15"><circle cx="7.5" cy="7.5" r="5.5" fill="none" stroke="var(--text2)" strokeWidth="1.4" /><path d="M7.5 4.3v3.5l2.3 1.4" stroke="var(--text2)" strokeWidth="1.4" strokeLinecap="round" fill="none" /></svg>
         </button>
         {historyOpen && (
@@ -92,11 +110,11 @@ export default function TopBar() {
         )}
       </div>
 
-      <button onClick={addTab} title="New document (new tab)" style={iconBtn}>
+      <button onClick={addTab} title="New document (new tab)" style={btn}>
         <svg width="15" height="15" viewBox="0 0 15 15"><path d="M7.5 2v11M2 7.5h11" stroke="var(--text2)" strokeWidth="1.5" strokeLinecap="round" /></svg>
       </button>
 
-      <button onClick={(e) => toggleThemeAnimated(toggleTheme, { x: e.clientX, y: e.clientY })} title={themeIsExplicit ? `Theme: ${theme} (pinned)` : `Theme: ${theme} (following system)`} style={iconBtn}>
+      <button onClick={(e) => toggleThemeAnimated(toggleTheme, { x: e.clientX, y: e.clientY })} title={themeIsExplicit ? `Theme: ${theme} (pinned)` : `Theme: ${theme} (following system)`} style={btn}>
         {theme === 'light'
           ? <svg width="15" height="15" viewBox="0 0 15 15"><circle cx="7.5" cy="7.5" r="3" fill="none" stroke="var(--text2)" strokeWidth="1.5" /><path d="M7.5 1v1.6M7.5 12.4V14M1 7.5h1.6M12.4 7.5H14M3 3l1.2 1.2M10.8 10.8L12 12M12 3l-1.2 1.2M4.2 10.8L3 12" stroke="var(--text2)" strokeWidth="1.4" strokeLinecap="round" /></svg>
           : <svg width="15" height="15" viewBox="0 0 15 15"><path d="M12.8 9.3A5.6 5.6 0 016 2.3a5.7 5.7 0 106.8 7z" fill="var(--text2)" /></svg>}
@@ -104,7 +122,7 @@ export default function TopBar() {
 
       {/* Settings */}
       <div style={{ position: 'relative' }}>
-        <button title="Settings" onClick={() => { setSettingsOpen(o => !o); setExportOpen(false); setHistoryOpen(false); }} style={iconBtn}>
+        <button title="Settings" onClick={() => { setSettingsOpen(o => !o); setExportOpen(false); setHistoryOpen(false); }} style={btn}>
           {/* toothed cog — deliberately not the ray-and-circle shape used by the theme toggle */}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" />
@@ -136,9 +154,12 @@ export default function TopBar() {
 
       {/* Export */}
       <div style={{ position: 'relative' }}>
-        <button onClick={() => { setExportOpen(o => !o); setSettingsOpen(false); setHistoryOpen(false); }} style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 7, padding: '0 12px', height: 32, cursor: 'pointer', font: "500 12.5px 'Inter',sans-serif", color: 'var(--text)' }}>
-          <svg width="13" height="13" viewBox="0 0 13 13"><path d="M6.5 1.5v7M4 4l2.5-2.5L9 4M2.5 8.5v2.3a1 1 0 001 1h6a1 1 0 001-1V8.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          Export
+        <button title="Export" onClick={() => { setExportOpen(o => !o); setSettingsOpen(false); setHistoryOpen(false); }}
+          style={isMobile
+            ? btn
+            : { display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 7, padding: '0 12px', height: 32, cursor: 'pointer', font: "500 12.5px 'Inter',sans-serif", color: 'var(--text)' }}>
+          <svg width={isMobile ? 15 : 13} height={isMobile ? 15 : 13} viewBox="0 0 13 13"><path d="M6.5 1.5v7M4 4l2.5-2.5L9 4M2.5 8.5v2.3a1 1 0 001 1h6a1 1 0 001-1V8.5" fill="none" stroke={isMobile ? 'var(--text2)' : 'currentColor'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          {!isMobile && 'Export'}
         </button>
         {exportOpen && (
           <Dropdown onClose={() => setExportOpen(false)} width={200}>
@@ -149,6 +170,8 @@ export default function TopBar() {
         )}
       </div>
     </div>
+    {isMobile && modeSwitch}
+    </>
   );
 }
 
@@ -157,10 +180,14 @@ function Dropdown({ children, onClose, width }) {
   useEffect(() => {
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
     document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
+    // touchstart too: on iOS a tap outside fires no mousedown until it also
+    // lands on a focusable element, so the sheet could stay stuck open.
+    document.addEventListener('touchstart', h);
+    return () => { document.removeEventListener('mousedown', h); document.removeEventListener('touchstart', h); };
   }, [onClose]);
   return (
-    <div ref={ref} style={{ position: 'absolute', top: 40, right: 0, width, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,.12)', zIndex: 50, overflow: 'hidden', maxHeight: 400, overflowY: 'auto' }}>
+    // width is clamped to the viewport so a 320px menu never overflows a phone.
+    <div ref={ref} style={{ position: 'absolute', top: 40, right: 0, width: `min(${width}px, calc(100vw - 20px))`, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,.12)', zIndex: 50, overflow: 'hidden', maxHeight: 'min(400px, 60dvh)', overflowY: 'auto' }}>
       {children}
     </div>
   );

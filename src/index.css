@@ -1,6 +1,10 @@
 html, body { margin: 0; padding: 0; }
 * { box-sizing: border-box; }
-#root { min-height: 100vh; }
+#root { min-height: 100vh; min-height: 100dvh; }
+/* Phone browsers must not re-flow our type when the device rotates, and the
+   whole app is a fixed shell — only inner panes scroll. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { overscroll-behavior: none; }
 ::selection { background: var(--accent-soft); }
 textarea { outline: none; }
 
@@ -149,6 +153,41 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .md-preview th, .md-preview td { border: 1px solid var(--border); padding: 7px 12px; text-align: left; }
 .md-preview th { background: var(--surface2); font-weight: 600; }
 .md-preview tbody tr:nth-child(even) { background: var(--surface2); }
+
+/* --- horizontal strips that must stay swipeable on a phone --- */
+.hscroll {
+  overflow-x: auto; overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.hscroll::-webkit-scrollbar { height: 0; display: none; }
+
+/* ================= phone layout ================= */
+@media (max-width: 760px) {
+  /* iOS zooms the page whenever a focused field is under 16px. Editors are
+     exempt — CodeMirror is not a form field and its own gestures handle zoom. */
+  input, textarea, select { font-size: 16px !important; }
+  .cm-editor .cm-scroller { font-size: 12.5px; line-height: 19.5px; }
+  .cm-editor .cm-gutters { min-width: 30px; }
+
+  /* Finger targets: the design's 26–28px controls are below the 44px guidance,
+     so grow the hit area without changing the visual box. */
+  button, [role="button"] { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+  .md-preview { padding: 18px 16px 48px; font-size: 15px; }
+  .md-preview pre.md-code { padding: 12px 12px; border-radius: 6px; }
+  .md-preview h1 { font-size: 1.6em; }
+  .md-preview h2 { font-size: 1.35em; }
+
+  /* ReactFlow's own chrome is desktop-sized; the minimap eats a phone screen. */
+  .react-flow__minimap { display: none; }
+  .react-flow__controls { transform: scale(1.15); transform-origin: bottom left; }
+
+  /* the pane swipe reads as jank at phone width — shorten it */
+  .pane-swipe-right { animation-duration: .18s; }
+  .pane-swipe-left { animation-duration: .18s; }
+}
 
 /* thin scrollbars */
 *::-webkit-scrollbar { width: 10px; height: 10px; cursor: default; }

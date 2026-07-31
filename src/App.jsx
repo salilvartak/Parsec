@@ -50,8 +50,10 @@ export default function App() {
               : null;
 
   return (
+    // 100dvh, not 100vh: mobile browsers count their collapsing address bar in
+    // 100vh, which pushes the bottom of the app under the chrome.
     <div className={theme === 'light' ? 'theme-light' : 'theme-dark'}
-      style={{ minHeight: '100vh', height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--text)', fontFamily: "'Inter',system-ui,sans-serif" }}>
+      style={{ height: '100dvh', maxHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--text)', fontFamily: "'Inter',system-ui,sans-serif", overflow: 'hidden' }}>
       <TopBar />
       <TabBar />
       {/* keyed so each tab change remounts and replays the swipe */}

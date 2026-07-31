@@ -6,6 +6,7 @@ import { csvToJson, jsonToCsv } from '../lib/converters/csv.js';
 import { unwrapStringified, wrapStringified } from '../lib/converters/wrap.js';
 import { jsonToTs } from '../lib/converters/tsgen.js';
 import { encodeBase64, decodeBase64 } from '../lib/converters/base64.js';
+import { useIsMobile } from '../lib/useMedia.js';
 
 // Each converter: id, label, forward/reverse fns + pane labels, seed samples.
 const CONV = {
@@ -43,6 +44,7 @@ const CONV = {
 const TAB_ORDER = ['xml', 'yaml', 'csv', 'wrap', 'ts', 'base64'];
 
 export default function Converters() {
+  const isMobile = useIsMobile();
   const convTab = useJsonStore(s => s.convTab);
   const setConvTab = useJsonStore(s => s.setConvTab);
   const reverse = useJsonStore(s => s.convReverse);
@@ -75,28 +77,51 @@ export default function Converters() {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ display: 'flex', gap: 2, padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', alignItems: 'center' }}>
+      {/* format picker — a swipeable strip on a phone, one row on a desktop */}
+      <div className={isMobile ? 'hscroll' : undefined}
+        style={{ display: 'flex', gap: isMobile ? 4 : 2, padding: isMobile ? '8px 10px' : '10px 16px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', alignItems: 'center', flex: 'none' }}>
         {TAB_ORDER.map(id => (
-          <button key={id} onClick={() => setConvTab(id)} style={{ border: 'none', background: convTab === id ? 'var(--accent-soft)' : 'transparent', color: convTab === id ? 'var(--accent)' : 'var(--text2)', font: "500 12.5px 'Inter',sans-serif", padding: '7px 13px', borderRadius: 6, cursor: 'pointer' }}>{CONV[id].label}</button>
+          <button key={id} onClick={() => setConvTab(id)} style={{
+            border: isMobile ? `1px solid ${convTab === id ? 'var(--accent)' : 'var(--border)'}` : 'none',
+            background: convTab === id ? 'var(--accent-soft)' : (isMobile ? 'var(--surface2)' : 'transparent'),
+            color: convTab === id ? 'var(--accent)' : 'var(--text2)', font: "500 12.5px 'Inter',sans-serif",
+            padding: isMobile ? '9px 13px' : '7px 13px', borderRadius: isMobile ? 8 : 6, cursor: 'pointer',
+            flex: 'none', whiteSpace: 'nowrap',
+          }}>{CONV[id].label}</button>
         ))}
-        <div style={{ flex: 1 }} />
-        {def.reversible && (
+        {!isMobile && <div style={{ flex: 1 }} />}
+        {!isMobile && def.reversible && (
           <button onClick={toggleReverse} title="Swap direction" style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 6, padding: '0 10px', height: 28, cursor: 'pointer', font: "500 12px 'Inter',sans-serif", color: 'var(--text)' }}>
             {dir.in} → {dir.out} ⇄
           </button>
         )}
-        {dir.in === 'JSON' && (
+        {!isMobile && dir.in === 'JSON' && (
           <button onClick={useCurrentDoc} style={{ border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 6, padding: '0 10px', height: 28, cursor: 'pointer', font: "500 12px 'Inter',sans-serif", color: 'var(--text)', marginLeft: 6 }}>Use current doc</button>
         )}
       </div>
 
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--border)', minWidth: 0 }}>
+      {/* the direction / source actions get their own row on a phone */}
+      {isMobile && (def.reversible || dir.in === 'JSON') && (
+        <div style={{ flex: 'none', display: 'flex', gap: 8, padding: '8px 10px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
+          {def.reversible && (
+            <button onClick={toggleReverse} title="Swap direction" style={{ flex: 1, height: 34, border: '1px solid var(--border)', background: 'var(--surface2)', borderRadius: 8, cursor: 'pointer', font: "500 12px 'Inter',sans-serif", color: 'var(--text)' }}>
+              {dir.in} → {dir.out} ⇄
+            </button>
+          )}
+          {dir.in === 'JSON' && (
+            <button onClick={useCurrentDoc} style={{ flex: 1, height: 34, border: '1px solid var(--border)', background: 'var(--surface2)', borderRadius: 8, cursor: 'pointer', font: "500 12px 'Inter',sans-serif", color: 'var(--text)' }}>Use current doc</button>
+          )}
+        </div>
+      )}
+
+      {/* input above output on a phone, side by side on a desktop */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden', minHeight: 0 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, ...(isMobile ? { borderBottom: '1px solid var(--border)' } : { borderRight: '1px solid var(--border)' }) }}>
           <div style={convHeader}>{dir.in} input</div>
           <textarea value={input} onChange={e => setInput(e.target.value)} spellCheck={false}
             style={{ flex: 1, border: 'none', resize: 'none', background: 'var(--surface)', color: 'var(--text)', font: "400 12.5px/1.65 'JetBrains Mono',monospace", padding: 14, outline: 'none', whiteSpace: 'pre' }} />
         </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
           <div style={convHeader}>
             <span style={{ flex: 1 }}>{dir.out} output</span>
             <button onClick={copyOut} disabled={!result.success} style={{ border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 5, padding: '0 9px', height: 22, font: "500 11px 'Inter',sans-serif", color: 'var(--text)', cursor: 'pointer' }}>{copied ? 'Copied' : 'Copy'}</button>

@@ -3,14 +3,18 @@ import CodeMirror from '@uiw/react-codemirror';
 import { useJsonStore } from '../store/useJsonStore.js';
 import { cmExtensions } from '../lib/cmTheme.js';
 import { markdownToHtml } from '../lib/markdown.js';
+import { useIsMobile } from '../lib/useMedia.js';
 
 export default function MarkdownView() {
+  const isMobile = useIsMobile();
   const markdownText = useJsonStore(s => s.markdownText);
   const setMarkdownText = useJsonStore(s => s.setMarkdownText);
   const theme = useJsonStore(s => s.theme);
 
   // 'split' | 'edit' | 'preview' — preview-only is the read mode for a .md file
-  const [view, setView] = useState('split');
+  const [viewPref, setView] = useState('split');
+  // A phone has no room for two columns, so split collapses to preview there.
+  const view = isMobile && viewPref === 'split' ? 'preview' : viewPref;
   const [copied, setCopied] = useState('');
   const fileRef = useRef(null);
 
@@ -43,28 +47,29 @@ export default function MarkdownView() {
     URL.revokeObjectURL(url);
   };
 
+  const mdBtn = isMobile ? { ...btn, height: 34, padding: '0 13px', borderRadius: 8, flex: 'none', whiteSpace: 'nowrap' } : btn;
   const showEditor = view === 'split' || view === 'edit';
   const showPreview = view === 'split' || view === 'preview';
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onDragOver={e => e.preventDefault()} onDrop={onDrop}>
       {/* toolbar */}
-      <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-        <div style={{ display: 'flex', gap: 2, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, padding: 3 }}>
-          {[['edit', 'Edit'], ['split', 'Split'], ['preview', 'Preview']].map(([id, label]) => (
+      <div className={isMobile ? 'hscroll' : undefined} style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: isMobile ? '8px 10px' : '8px 14px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
+        <div style={{ display: 'flex', gap: 2, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, padding: 3, flex: 'none' }}>
+          {(isMobile ? [['edit', 'Edit'], ['preview', 'Preview']] : [['edit', 'Edit'], ['split', 'Split'], ['preview', 'Preview']]).map(([id, label]) => (
             <button key={id} onClick={() => setView(id)} style={{
               border: 'none', background: view === id ? 'var(--accent-soft)' : 'transparent',
               color: view === id ? 'var(--accent)' : 'var(--text2)', font: "500 12px 'Inter',sans-serif",
-              padding: '5px 12px', borderRadius: 5, cursor: 'pointer',
+              padding: isMobile ? '7px 14px' : '5px 12px', borderRadius: 5, cursor: 'pointer',
             }}>{label}</button>
           ))}
         </div>
         <div style={{ flex: 1 }} />
-        {copied && <span style={{ font: "500 11.5px 'Inter',sans-serif", color: 'var(--syn-string)' }}>{copied}</span>}
+        {copied && <span style={{ font: "500 11.5px 'Inter',sans-serif", color: 'var(--syn-string)', flex: 'none' }}>{copied}</span>}
         <input ref={fileRef} type="file" accept=".md,.markdown,.txt,text/markdown" onChange={onFile} style={{ display: 'none' }} />
-        <button onClick={() => fileRef.current?.click()} style={btn}>Open .md</button>
-        <button onClick={copyHtml} style={btn}>Copy HTML</button>
-        <button onClick={download} style={btn}>Download .md</button>
+        <button onClick={() => fileRef.current?.click()} style={mdBtn}>Open{isMobile ? '' : ' .md'}</button>
+        <button onClick={copyHtml} style={mdBtn}>{isMobile ? 'HTML' : 'Copy HTML'}</button>
+        <button onClick={download} style={mdBtn}>{isMobile ? 'Save' : 'Download .md'}</button>
       </div>
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>

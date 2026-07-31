@@ -1,8 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { FixedSizeList } from 'react-window';
 import { useJsonStore } from '../store/useJsonStore.js';
+import { useIsMobile } from '../lib/useMedia.js';
 
 const ROW_H = 21;
+const ROW_H_TOUCH = 28;
 const MAX_DEPTH = 200;
 
 function typeOf(v) {
@@ -72,6 +74,8 @@ function allBranchPaths(value) {
 }
 
 export default function TreeView({ value, height }) {
+  const isMobile = useIsMobile();
+  const rowH = isMobile ? ROW_H_TOUCH : ROW_H;
   const selectedPath = useJsonStore(s => s.selectedPath);
   const setSelectedPath = useJsonStore(s => s.setSelectedPath);
   const matches = useJsonStore(s => s.jsonPathMatches);
@@ -128,6 +132,10 @@ export default function TreeView({ value, height }) {
     try { await navigator.clipboard.writeText(text); setCopied(path + kind); setTimeout(() => setCopied(null), 1200); } catch { /* */ }
   };
 
+  // Touch has no hover, so the copy buttons only appear on the selected row —
+  // they need a bigger box there to stay tappable.
+  const mini = isMobile ? { ...miniBtn, height: 22, lineHeight: '20px', padding: '0 8px', fontSize: 11 } : miniBtn;
+
   const Row = ({ index, style }) => {
     const r = rows[index];
     const isSelected = selectedPath === r.path;
@@ -140,12 +148,12 @@ export default function TreeView({ value, height }) {
 
     return (
       <div style={{ ...style, display: 'flex', alignItems: 'center' }}>
-        <div style={{ width: r.depth * 14, flex: 'none' }} />
+        <div style={{ width: r.depth * (isMobile ? 11 : 14), flex: 'none' }} />
         <div
           onClick={() => { setSelectedPath(r.path); if (r.isExpandable) toggle(r.path); }}
           onMouseEnter={() => setHovered(r.path)}
           onMouseLeave={() => setHovered(h => (h === r.path ? null : h))}
-          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '1px 6px', borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap', minHeight: ROW_H, background: bg, flex: 1, minWidth: 0 }}
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '1px 6px', borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap', minHeight: rowH, background: bg, flex: 1, minWidth: 0 }}
         >
           <svg width="10" height="10" viewBox="0 0 10 10" style={{ flex: 'none', visibility: r.isExpandable ? 'visible' : 'hidden', transform: r.isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform .12s' }}>
             <path d="M3 1.5L7 5L3 8.5" fill="none" stroke="var(--text2)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -163,8 +171,8 @@ export default function TreeView({ value, height }) {
           {/* copy actions on hover/selected */}
           {(hovered === r.path || isSelected) && (
             <span style={{ marginLeft: 8, display: 'inline-flex', gap: 4 }} onClick={e => e.stopPropagation()}>
-              <button title="Copy JSONPath" onClick={() => copy(toJsonPath(r.path), 'p', r.path)} style={miniBtn}>{copied === r.path + 'p' ? '✓' : 'path'}</button>
-              <button title="Copy value" onClick={() => copy(JSON.stringify(r.value, null, 2), 'v', r.path)} style={miniBtn}>{copied === r.path + 'v' ? '✓' : 'value'}</button>
+              <button title="Copy JSONPath" onClick={() => copy(toJsonPath(r.path), 'p', r.path)} style={mini}>{copied === r.path + 'p' ? '✓' : 'path'}</button>
+              <button title="Copy value" onClick={() => copy(JSON.stringify(r.value, null, 2), 'v', r.path)} style={mini}>{copied === r.path + 'v' ? '✓' : 'value'}</button>
             </span>
           )}
         </div>
@@ -185,7 +193,7 @@ export default function TreeView({ value, height }) {
           ref={listRef}
           height={Math.max(120, height - 34)}
           itemCount={rows.length}
-          itemSize={ROW_H}
+          itemSize={rowH}
           width="100%"
           overscanCount={12}
           style={{ font: "400 12.5px 'JetBrains Mono',monospace" }}
