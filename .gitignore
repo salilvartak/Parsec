@@ -5,3 +5,8 @@ dist/
 *.log
 .DS_Store
 .vite/
+
+.vercel
+.env*
+# ...but keep the template: it documents which vars are needed and holds no values.
+!.env.example

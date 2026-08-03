@@ -17,6 +17,7 @@
     "@codemirror/view": "^6.38.1",
     "@lezer/highlight": "^1.2.1",
     "@uiw/react-codemirror": "^4.24.1",
+    "@upstash/redis": "^1.38.1",
     "@xyflow/react": "^12.11.2",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",

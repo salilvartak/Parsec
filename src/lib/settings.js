@@ -24,6 +24,9 @@ export const DEFAULT_SETTINGS = {
   convDirection: 'toJson',   // converter default direction: 'toJson' | 'fromJson'
   historyEnabled: true,
   historyLimit: 15,
+  // ai — off hides the AI actions entirely. Opt-out matters here because these
+  // are the only features that send document contents off the device.
+  aiEnabled: true,
 };
 
 // Accent presets carry a colour per theme — the light palette's navy would be
@@ -79,7 +82,7 @@ function sanitize(s) {
   if (![5, 15, 30, 50].includes(out.historyLimit)) out.historyLimit = 15;
   if (!['editor', 'converters', 'flowchart', 'diff', 'markdown'].includes(out.defaultTab)) out.defaultTab = 'editor';
   if (!['toJson', 'fromJson'].includes(out.convDirection)) out.convDirection = 'toJson';
-  for (const k of ['sortKeys', 'lineWrap', 'lineNumbers', 'foldGutter', 'highlightActiveLine', 'showStats', 'animations', 'historyEnabled']) {
+  for (const k of ['sortKeys', 'lineWrap', 'lineNumbers', 'foldGutter', 'highlightActiveLine', 'showStats', 'animations', 'historyEnabled', 'aiEnabled']) {
     out[k] = !!out[k];
   }
   return out;

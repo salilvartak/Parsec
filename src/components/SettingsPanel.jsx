@@ -21,6 +21,7 @@ export default function SettingsPanel() {
   const setTheme = useJsonStore(st => st.setTheme);
   const useSystemTheme = useJsonStore(st => st.useSystemTheme);
   const historyCount = useJsonStore(st => st.history.length);
+  const aiRemaining = useJsonStore(st => st.aiRemaining);
 
   const themeValue = themeIsExplicit ? theme : 'system';
   const pickTheme = (v, e) => toggleThemeAnimated(
@@ -106,6 +107,30 @@ export default function SettingsPanel() {
         <Segmented label="Default direction" value={s.convDirection} onPick={v => setSetting('convDirection', v)}
           hint="Which way a reversible converter faces when you open it."
           options={[['toJson', 'To JSON'], ['fromJson', 'From JSON']]} />
+      </Section>
+
+      <Section title="AI">
+        <Toggle label="AI assistance" hint="Adds Repair and Mock data to the editor toolbar."
+          checked={s.aiEnabled} onChange={v => setSetting('aiEnabled', v)} />
+
+        {/* Stated plainly and shown whether or not the toggle is on: someone
+            deciding whether to turn this on needs the tradeoff before they do,
+            not after. */}
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <span style={{ flex: 'none', color: 'var(--text3)', font: '11px sans-serif', transform: 'translateY(1px)' }}>ⓘ</span>
+            <div style={{ font: "400 11.5px 'Inter',sans-serif", color: 'var(--text2)', lineHeight: 1.5 }}>
+              Repair and Mock data send document contents to Google Gemini. This runs on
+              Google's free tier, where submitted content may be used to improve their
+              models — avoid it for confidential data, or switch AI off.
+            </div>
+          </div>
+          <div style={{ font: "400 11.5px 'Inter',sans-serif", color: 'var(--text3)', paddingLeft: 19, lineHeight: 1.5 }}>
+            Repair tries a local fix first and only calls the API when that isn't enough,
+            so most repairs never leave your browser.
+            {aiRemaining !== null && ` ${aiRemaining} request${aiRemaining === 1 ? '' : 's'} left today.`}
+          </div>
+        </div>
       </Section>
 
       <Section title="Workspace">

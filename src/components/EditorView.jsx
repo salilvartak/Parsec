@@ -11,6 +11,8 @@ import { queryJsonPath } from '../lib/jsonpath.js';
 import { unwrapStringified, wrapStringified } from '../lib/converters/wrap.js';
 import TreeView from './TreeView.jsx';
 import StatsPanel from './StatsPanel.jsx';
+import AiRepairDialog from './AiRepairDialog.jsx';
+import AiMockDialog from './AiMockDialog.jsx';
 import { useIsMobile } from '../lib/useMedia.js';
 
 const toolBtn = { display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 6, padding: '0 10px', height: 28, cursor: 'pointer', font: "500 12px 'Inter',sans-serif", color: 'var(--text)', flex: 'none' };
@@ -45,6 +47,7 @@ export default function EditorView() {
 
   const [query, setQuery] = useState('');
   const [showDups, setShowDups] = useState(false);
+  const [aiDialog, setAiDialog] = useState(null); // null | 'repair' | 'mock'
   const [treeH, setTreeH] = useState(400);
   const treePaneRef = useRef(null);
   const debounceRef = useRef(null);
@@ -153,6 +156,26 @@ export default function EditorView() {
             <button onClick={doUnwrap} disabled={!canUnwrap} style={tBtn} title="Re-parse stringified JSON">Unwrap</button>
           </>
         )}
+
+        {/* AI actions. Repair is offered only when the document is actually
+            broken, and Mock only when it parses — a shape can't be copied from
+            something that doesn't. Both hidden entirely when AI is off. */}
+        {settings.aiEnabled && !isXml && (
+          <>
+            {hasError && (
+              <button onClick={() => setAiDialog('repair')} title="Fix this JSON — tries a local repair first, then AI"
+                style={{ ...tBtn, borderColor: 'var(--accent)', background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                <AiSpark />Repair
+              </button>
+            )}
+            {!hasError && !isEmpty && (
+              <button onClick={() => setAiDialog('mock')} title="Generate sample data matching this structure" style={tBtn}>
+                <AiSpark />Mock data
+              </button>
+            )}
+          </>
+        )}
+
         <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px', flex: 'none' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, font: "500 11.5px 'JetBrains Mono',monospace", padding: '0 9px', height: 26, borderRadius: 5, background: statusBg, color: statusColor, flex: 'none' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor }} />{statusLabel}
@@ -250,6 +273,24 @@ export default function EditorView() {
         </div>
         )}
       </div>
+
+      {aiDialog === 'repair' && (
+        <AiRepairDialog source={rawText} onClose={() => setAiDialog(null)} />
+      )}
+      {aiDialog === 'mock' && (
+        <AiMockDialog source={rawText} indent={indentStr} onClose={() => setAiDialog(null)} />
+      )}
     </div>
+  );
+}
+
+// Four-point spark. Deliberately not the cog or the sun already used in the top
+// bar, so AI actions read as their own category at a glance.
+function AiSpark() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 12 12" style={{ flex: 'none' }} aria-hidden="true">
+      <path d="M6 .8l1.15 3.05L10.2 5l-3.05 1.15L6 9.2 4.85 6.15 1.8 5l3.05-1.15z" fill="currentColor" />
+      <path d="M10 7.6l.5 1.3 1.3.5-1.3.5-.5 1.3-.5-1.3-1.3-.5 1.3-.5z" fill="currentColor" opacity=".6" />
+    </svg>
   );
 }
