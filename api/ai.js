@@ -8,7 +8,7 @@
 // anything arriving here is genuinely ambiguous (truncation, missing structure).
 
 import { randomUUID, createHash } from 'node:crypto';
-import { claim, refund, tripCooldown } from './_lib/limit.js';
+import { claim, refund, tripCooldown, LimiterConfigError } from './_lib/limit.js';
 import { generateJson, GeminiError } from './_lib/gemini.js';
 import { MODEL, MAX_INPUT_BYTES, MAX_OUTPUT_TOKENS } from './_lib/config.js';
 
@@ -40,7 +40,20 @@ export default async function handler(req, res) {
     });
   }
 
-  const slot = await claim(userId);
+  let slot;
+  try {
+    slot = await claim(userId);
+  } catch (err) {
+    // A setup problem, not an outage. Say so plainly — this is the difference
+    // between "try again later" and "you forgot to add Upstash".
+    const setup = err instanceof LimiterConfigError;
+    console.error('[ai] limiter unavailable:', err.message);
+    return send(res, 500, {
+      error: setup ? 'server_misconfigured' : 'limiter_unavailable',
+      message: setup ? err.message : 'The rate limiter is unavailable. Check the Redis connection.',
+    });
+  }
+
   res.setHeader('x-usage-remaining', String(slot.remaining));
   if (!slot.ok) {
     res.setHeader('retry-after', String(slot.retryAfter));

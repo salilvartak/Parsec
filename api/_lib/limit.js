@@ -14,7 +14,20 @@
 import { Redis } from '@upstash/redis';
 import { globalDailyCap, globalMinuteCap, PER_USER_DAILY, COOLDOWN_SECONDS } from './config.js';
 
-const redis = createStore();
+// Thrown when the limiter cannot run safely. Distinct from a runtime failure so
+// the handler can report it as a setup problem rather than a generic outage.
+export class LimiterConfigError extends Error {}
+
+let store = null;
+
+// Built on first use, not at import time. A throw during module evaluation
+// takes down the whole function with an opaque 500 and no way to explain why —
+// deferring it means the handler can catch this and say what's actually wrong.
+function getStore() {
+  if (store) return store;
+  store = createStore();
+  return store;
+}
 
 // Upstash when it's configured, an in-memory map otherwise.
 //
@@ -27,9 +40,10 @@ function createStore() {
   if (configured) return Redis.fromEnv();
 
   if (process.env.VERCEL_ENV === 'production') {
-    throw new Error(
-      'Upstash Redis is not configured. Add the Upstash integration in Vercel — ' +
-      'the in-memory limiter cannot enforce a shared quota across instances.',
+    throw new LimiterConfigError(
+      'Upstash Redis is not configured. Add the Upstash integration in the Vercel dashboard ' +
+      '(Storage → Upstash Redis) and connect it to this project. The in-memory limiter cannot ' +
+      'enforce a shared quota across serverless instances, so it is refused in production.',
     );
   }
 
@@ -83,21 +97,28 @@ const minuteKey = () => new Date().toISOString().slice(0, 16);    // UTC minute
 
 // Increment a counter and set its TTL on first write. Returns the new value.
 async function bump(key, ttl) {
-  const value = await redis.incr(key);
-  if (value === 1) await redis.expire(key, ttl);
+  const value = await getStore().incr(key);
+  if (value === 1) await getStore().expire(key, ttl);
   return value;
 }
 
 // Read counters without incrementing — used to report remaining quota on
 // responses and rejections.
 async function peek(key) {
-  const value = await redis.get(key);
+  const value = await getStore().get(key);
   return Number(value) || 0;
 }
 
 // Claim one request slot.
 // → { ok: true, remaining } | { ok: false, reason, retryAfter, remaining }
 export async function claim(userId) {
+  // Resolve the store before anything else. getStore() throws synchronously
+  // when Redis is missing, and doing that midway through building a
+  // Promise.all array would leave the sibling promises rejected with nobody
+  // listening — an unhandled rejection that can kill the process instead of
+  // surfacing as a catchable error.
+  getStore();
+
   const gDay = `g:d:${dayKey()}`;
   const gMin = `g:m:${minuteKey()}`;
   const uDay = `u:${userId}:${dayKey()}`;
@@ -105,7 +126,7 @@ export async function claim(userId) {
   // Check before incrementing, so a rejected request doesn't burn quota it was
   // never allowed to use.
   const [globalUsed, minuteUsed, userUsed, cooling] = await Promise.all([
-    peek(gDay), peek(gMin), peek(uDay), redis.ttl(COOLDOWN_KEY),
+    peek(gDay), peek(gMin), peek(uDay), getStore().ttl(COOLDOWN_KEY),
   ]);
 
   // Google rate-limited us recently. Our configured RPM is a guess, so this is
@@ -157,7 +178,7 @@ export async function claim(userId) {
 // stop pushing against a limit we've demonstrably already hit.
 export async function tripCooldown() {
   try {
-    await redis.set(COOLDOWN_KEY, '1', { ex: COOLDOWN_SECONDS });
+    await getStore().set(COOLDOWN_KEY, '1', { ex: COOLDOWN_SECONDS });
   } catch { /* best effort */ }
 }
 
@@ -167,9 +188,9 @@ export async function tripCooldown() {
 export async function refund(userId) {
   try {
     await Promise.all([
-      redis.decr(`g:d:${dayKey()}`),
-      redis.decr(`g:m:${minuteKey()}`),
-      redis.decr(`u:${userId}:${dayKey()}`),
+      getStore().decr(`g:d:${dayKey()}`),
+      getStore().decr(`g:m:${minuteKey()}`),
+      getStore().decr(`u:${userId}:${dayKey()}`),
     ]);
   } catch { /* best effort — a lost refund is not worth failing the request */ }
 }
