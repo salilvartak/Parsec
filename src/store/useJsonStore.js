@@ -81,7 +81,8 @@ export const useJsonStore = create((set, get) => ({
   // converters
   convTab: 'xml',
   convInput: '',
-  convReverse: false,       // direction toggle within a converter
+  // direction toggle within a converter; seeded from the saved default
+  convReverse: initSettings.convDirection === 'fromJson',
 
   // flowchart
   flowCollapsed: {},
@@ -145,6 +146,8 @@ export const useJsonStore = create((set, get) => ({
       saveHistory(history);
       return { settings, history };
     }
+    // Flip the live converter direction the moment the default changes.
+    if (key === 'convDirection') return { settings, convReverse: value === 'fromJson', convInput: '' };
     return { settings };
   }),
   resetSettings: () => set(() => {
@@ -222,7 +225,7 @@ export const useJsonStore = create((set, get) => ({
   })),
 
   // ---- converters ----
-  setConvTab: (convTab) => set({ convTab, convInput: '', convReverse: false }),
+  setConvTab: (convTab) => set(s => ({ convTab, convInput: '', convReverse: s.settings.convDirection === 'fromJson' })),
   setConvInput: (convInput) => set({ convInput }),
   toggleConvReverse: () => set(s => ({ convReverse: !s.convReverse, convInput: '' })),
 

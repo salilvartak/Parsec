@@ -3,6 +3,15 @@ import { useJsonStore } from '../store/useJsonStore.js';
 import { ACCENTS } from '../lib/settings.js';
 import { toggleThemeAnimated } from '../lib/themeTransition.js';
 
+// Discrete editor font sizes offered as chips (px). Spread across the 11–17 range.
+const FONT_SIZES = [
+  { v: 12, label: 'S' },
+  { v: 13, label: 'M' },
+  { v: 14, label: 'L' },
+  { v: 15, label: 'XL' },
+  { v: 16, label: 'XXL' },
+];
+
 export default function SettingsPanel() {
   const s = useJsonStore(st => st.settings);
   const setSetting = useJsonStore(st => st.setSetting);
@@ -49,9 +58,24 @@ export default function SettingsPanel() {
 
       <Section title="Editor">
         <Field label="Font size" value={`${s.fontSize}px`}>
-          <input type="range" min={11} max={17} step={0.5} value={s.fontSize}
-            onChange={e => setSetting('fontSize', Number(e.target.value))}
-            style={{ width: '100%', accentColor: 'var(--accent)' }} />
+          <div style={{ display: 'flex', gap: 6 }}>
+            {FONT_SIZES.map(({ v, label }) => {
+              const active = Math.abs(s.fontSize - v) < 0.75;
+              return (
+                <button key={v} onClick={() => setSetting('fontSize', v)} title={`${v}px`}
+                  style={{
+                    flex: 1, height: 44, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                    cursor: 'pointer', borderRadius: 7,
+                    border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                    background: active ? 'var(--accent-soft)' : 'var(--surface)',
+                    color: active ? 'var(--accent)' : 'var(--text2)',
+                  }}>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 600, fontSize: v }}>A</span>
+                  <span style={{ font: "500 9px 'Inter',sans-serif", opacity: .8 }}>{label}</span>
+                </button>
+              );
+            })}
+          </div>
         </Field>
         <Toggle label="Wrap long lines" checked={s.lineWrap} onChange={v => setSetting('lineWrap', v)} />
         <Toggle label="Line numbers" checked={s.lineNumbers} onChange={v => setSetting('lineNumbers', v)} />
@@ -76,6 +100,12 @@ export default function SettingsPanel() {
         </Field>
         <Toggle label="Show stats footer" hint="Depth / keys / nodes / size tiles."
           checked={s.showStats} onChange={v => setSetting('showStats', v)} />
+      </Section>
+
+      <Section title="Converters">
+        <Segmented label="Default direction" value={s.convDirection} onPick={v => setSetting('convDirection', v)}
+          hint="Which way a reversible converter faces when you open it."
+          options={[['toJson', 'To JSON'], ['fromJson', 'From JSON']]} />
       </Section>
 
       <Section title="Workspace">

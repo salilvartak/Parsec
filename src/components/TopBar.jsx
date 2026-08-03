@@ -61,9 +61,8 @@ export default function TopBar() {
         : { display: 'flex', gap: 2, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 3 }}>
       {tabDefs.map(([id, label]) => (
         <button key={id} onClick={() => setMode(id)} style={{
-          border: isMobile ? '1px solid var(--border)' : 'none',
+          border: isMobile ? `1px solid ${mode === id ? 'var(--accent)' : 'var(--border)'}` : 'none',
           background: mode === id ? 'var(--accent-soft)' : (isMobile ? 'var(--surface2)' : 'transparent'),
-          borderColor: isMobile && mode === id ? 'var(--accent)' : 'var(--border)',
           color: mode === id ? 'var(--accent)' : 'var(--text2)', font: "500 12.5px 'Inter',sans-serif",
           padding: isMobile ? '8px 14px' : '6px 13px', borderRadius: isMobile ? 8 : 6, cursor: 'pointer',
           flex: 'none', whiteSpace: 'nowrap',
@@ -79,7 +78,7 @@ export default function TopBar() {
         {/* the dark-theme mark is a separate file — the light one disappears on
             the dark surface */}
         <img src={theme === 'dark' ? '/logo-dark.png' : '/logo.png'} alt="" width="26" height="26" style={{ borderRadius: 6, display: 'block', flex: 'none' }} />
-        {!isMobile && <span style={{ fontWeight: 600, fontSize: 14, letterSpacing: '-.01em' }}>Parsec</span>}
+        {!isMobile && <span style={{ fontFamily: "'Changa', 'Inter', sans-serif", fontWeight: 700, fontSize: 15, letterSpacing: '.04em', textTransform: 'uppercase' }}>Parsec</span>}
       </div>
 
       {/* On a phone the mode pills move to their own swipeable row below. */}
@@ -160,4 +159,7 @@ function Dropdown({ children, onClose, width }) {
 
 const dropItemRow = { display: 'block', width: '100%', textAlign: 'left', border: 'none', borderBottom: '1px solid var(--border)', background: 'transparent', padding: '10px 12px', cursor: 'pointer', font: "500 12px 'Inter',sans-serif", color: 'var(--text)' };
 // A toolbar button whose drawer is currently open.
-const activeBtn = (base) => ({ ...base, background: 'var(--accent-soft)', borderColor: 'var(--accent)' });
+// Override the full `border` shorthand (not just borderColor) — mixing shorthand
+// and longhand makes React unable to cleanly remove the accent border when the
+// button goes inactive, leaving a stuck "selected" box that reads as focus.
+const activeBtn = (base) => ({ ...base, background: 'var(--accent-soft)', border: '1px solid var(--accent)' });

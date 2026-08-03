@@ -91,9 +91,7 @@ export default function Converters() {
         ))}
         {!isMobile && <div style={{ flex: 1 }} />}
         {!isMobile && def.reversible && (
-          <button onClick={toggleReverse} title="Swap direction" style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 6, padding: '0 10px', height: 28, cursor: 'pointer', font: "500 12px 'Inter',sans-serif", color: 'var(--text)' }}>
-            {dir.in} → {dir.out} ⇄
-          </button>
+          <DirectionSwap from={dir.in} to={dir.out} onClick={toggleReverse} />
         )}
         {!isMobile && dir.in === 'JSON' && (
           <button onClick={useCurrentDoc} style={{ border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 6, padding: '0 10px', height: 28, cursor: 'pointer', font: "500 12px 'Inter',sans-serif", color: 'var(--text)', marginLeft: 6 }}>Use current doc</button>
@@ -104,9 +102,7 @@ export default function Converters() {
       {isMobile && (def.reversible || dir.in === 'JSON') && (
         <div style={{ flex: 'none', display: 'flex', gap: 8, padding: '8px 10px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
           {def.reversible && (
-            <button onClick={toggleReverse} title="Swap direction" style={{ flex: 1, height: 34, border: '1px solid var(--border)', background: 'var(--surface2)', borderRadius: 8, cursor: 'pointer', font: "500 12px 'Inter',sans-serif", color: 'var(--text)' }}>
-              {dir.in} → {dir.out} ⇄
-            </button>
+            <DirectionSwap from={dir.in} to={dir.out} onClick={toggleReverse} mobile />
           )}
           {dir.in === 'JSON' && (
             <button onClick={useCurrentDoc} style={{ flex: 1, height: 34, border: '1px solid var(--border)', background: 'var(--surface2)', borderRadius: 8, cursor: 'pointer', font: "500 12px 'Inter',sans-serif", color: 'var(--text)' }}>Use current doc</button>
@@ -162,6 +158,41 @@ function prettyError(err, dir) {
   if (from === 'XML' && /tag|attribute|closing/i.test(msg)) return `${msg}. Check that every tag is closed and properly nested.`;
   if (/not a stringified/i.test(msg)) return 'This isn’t a JSON string wrapping more JSON. Wrap converts a document into an escaped string; Unwrap reverses it.';
   return msg;
+}
+
+// Direction control: two format chips with a swap icon between them. The whole
+// control is one button; the source chip is filled, the target outlined, and an
+// arrow points from source → target so the conversion direction is unambiguous.
+// The icon spins on click to reinforce that it flips the two sides.
+function DirectionSwap({ from, to, onClick, mobile }) {
+  const [spin, setSpin] = React.useState(0);
+  const handle = () => { setSpin(s => s + 180); onClick(); };
+  const chip = (text, filled) => (
+    <span style={{
+      font: "600 11.5px 'Inter',sans-serif", padding: '3px 9px', borderRadius: 5, lineHeight: 1.4,
+      color: filled ? 'var(--accent)' : 'var(--text2)',
+      background: filled ? 'var(--accent-soft)' : 'transparent',
+      border: `1px solid ${filled ? 'transparent' : 'var(--border)'}`,
+    }}>{text}</span>
+  );
+  return (
+    <button onClick={handle} title={`Convert ${from} → ${to}. Click to swap direction.`}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer',
+        border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 8,
+        padding: mobile ? '0 12px' : '0 8px', height: mobile ? 34 : 30, flex: mobile ? 1 : 'none',
+        justifyContent: 'center',
+      }}>
+      {chip(from, true)}
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="var(--text2)" strokeWidth="1.6"
+        strokeLinecap="round" strokeLinejoin="round"
+        style={{ transform: `rotate(${spin}deg)`, transition: 'transform .35s cubic-bezier(.4,0,.2,1)', flex: 'none' }}>
+        <path d="M4 7.5h12M13 4.5l3 3" />
+        <path d="M16 12.5H4M7 15.5l-3-3" />
+      </svg>
+      {chip(to, false)}
+    </button>
+  );
 }
 
 // Shared pane header — fixed height so both sides line up regardless of the

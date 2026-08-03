@@ -21,6 +21,7 @@ export const DEFAULT_SETTINGS = {
   animations: true,
   // workspace
   defaultTab: 'editor',      // tab selected on load
+  convDirection: 'toJson',   // converter default direction: 'toJson' | 'fromJson'
   historyEnabled: true,
   historyLimit: 15,
 };
@@ -77,6 +78,7 @@ function sanitize(s) {
   if (!['comfortable', 'compact'].includes(out.density)) out.density = 'comfortable';
   if (![5, 15, 30, 50].includes(out.historyLimit)) out.historyLimit = 15;
   if (!['editor', 'converters', 'flowchart', 'diff', 'markdown'].includes(out.defaultTab)) out.defaultTab = 'editor';
+  if (!['toJson', 'fromJson'].includes(out.convDirection)) out.convDirection = 'toJson';
   for (const k of ['sortKeys', 'lineWrap', 'lineNumbers', 'foldGutter', 'highlightActiveLine', 'showStats', 'animations', 'historyEnabled']) {
     out[k] = !!out[k];
   }
