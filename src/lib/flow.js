@@ -9,7 +9,6 @@ const NODE_W = 260;
 const HEAD_H = 30;
 const LEAF_H = 16;
 const PAD = 16;
-const MAX_LEAVES_SHOWN = 8;
 
 export function buildFlow(value, collapsed = {}) {
   const nodes = [];
@@ -17,8 +16,7 @@ export function buildFlow(value, collapsed = {}) {
   let truncated = false;
 
   function estHeight(leafCount) {
-    const shown = Math.min(leafCount, MAX_LEAVES_SHOWN) + (leafCount > MAX_LEAVES_SHOWN ? 1 : 0);
-    return HEAD_H + shown * LEAF_H + PAD;
+    return HEAD_H + leafCount * LEAF_H + PAD;
   }
 
   function walk(key, val, path, parentId) {

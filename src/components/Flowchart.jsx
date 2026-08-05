@@ -41,13 +41,12 @@ function JsonNode({ data, selected }) {
           </button>
         )}
       </div>
-      {data.leaves.slice(0, 8).map((l, i) => (
+      {data.leaves.map((l, i) => (
         <div key={i} className="rf-leaf">
           {l.key !== '' && <span className="rf-syn-key">{l.key}: </span>}
           <span className={synClass[l.type] || ''}>{l.type === 'string' ? `"${truncate(l.value)}"` : String(l.value)}</span>
         </div>
       ))}
-      {data.leaves.length > 8 && <div className="rf-leaf">…{data.leaves.length - 8} more</div>}
       <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
     </div>
   );
