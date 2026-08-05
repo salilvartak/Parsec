@@ -224,6 +224,9 @@ export default function EditorView() {
                 foldGutter: settings.foldGutter,
                 highlightActiveLine: settings.highlightActiveLine,
                 bracketMatching: true,
+                // Ctrl+F falls through to the browser's own find bar rather
+                // than opening CodeMirror's search panel.
+                searchKeymap: false,
               }}
               style={{ height: '100%' }}
             />
