@@ -134,6 +134,14 @@ button:focus-visible, select:focus-visible, [role="switch"]:focus-visible {
   color: var(--text2); font-size: 11px; margin-top: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
+/* "Full text" mode: the node was measured wide enough for its longest line, so
+   let rows wrap instead of clipping. `anywhere` rather than `break-word` because
+   the long values here are usually unbroken tokens — URLs, ids, base64 — which
+   have no break opportunity for the normal algorithm to find. */
+.rf-node.rf-fit { overflow: visible; }
+.rf-node.rf-fit .rf-leaf {
+  white-space: pre-wrap; overflow: visible; text-overflow: clip; overflow-wrap: anywhere;
+}
 .rf-node .rf-syn-string { color: var(--syn-string); }
 .rf-node .rf-syn-number { color: var(--syn-number); }
 .rf-node .rf-syn-bool { color: var(--syn-bool); }

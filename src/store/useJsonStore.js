@@ -87,6 +87,10 @@ export const useJsonStore = create((set, get) => ({
   // flowchart
   flowCollapsed: {},
   flowWarned: false,
+  // Grow nodes to show full values instead of clipping them. Off by default —
+  // uniform node widths are much easier to scan, and only some documents have
+  // values long enough to need this.
+  flowFit: false,
 
   // jsonpath
   jsonPathQuery: '',
@@ -233,6 +237,7 @@ export const useJsonStore = create((set, get) => ({
   toggleFlowNode: (id) => set(s => ({ flowCollapsed: { ...s.flowCollapsed, [id]: !s.flowCollapsed[id] } })),
   setFlowCollapsedMap: (flowCollapsed) => set({ flowCollapsed }),
   setFlowWarned: (v) => set({ flowWarned: v }),
+  toggleFlowFit: () => set(s => ({ flowFit: !s.flowFit })),
 
   // ---- jsonpath ----
   setJsonPathQuery: (jsonPathQuery) => set({ jsonPathQuery }),

@@ -21,7 +21,7 @@ function JsonNode({ data, selected }) {
   const accent = typeColor[data.nodeType] || 'var(--border)';
   return (
     <div
-      className="rf-node"
+      className={data.fit ? 'rf-node rf-fit' : 'rf-node'}
       style={{
         borderColor: data.highlight ? 'var(--syn-key)' : (data.collapsible ? accent : 'var(--border)'),
         borderWidth: data.highlight || selected ? 2 : 1.3,
@@ -31,7 +31,9 @@ function JsonNode({ data, selected }) {
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, borderBottom: data.leaves.length ? '1px solid var(--border)' : 'none', paddingBottom: data.leaves.length ? 5 : 0, marginBottom: data.leaves.length ? 4 : 0 }}>
         <span style={{ width: 7, height: 7, borderRadius: data.nodeType === 'array' ? 2 : '50%', background: accent, flex: 'none' }} />
-        <strong style={{ color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{data.label}</strong>
+        <strong style={data.fit
+          ? { color: 'var(--text)', overflowWrap: 'anywhere', minWidth: 0 }
+          : { color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{data.label}</strong>
         <span style={{ color: 'var(--text3)', fontSize: 10, flex: 'none' }}>{data.nodeType === 'array' ? `[${data.size}]` : `{${data.size}}`}</span>
         <div style={{ flex: 1 }} />
         {data.collapsible && (
@@ -44,7 +46,7 @@ function JsonNode({ data, selected }) {
       {data.leaves.map((l, i) => (
         <div key={i} className="rf-leaf">
           {l.key !== '' && <span className="rf-syn-key">{l.key}: </span>}
-          <span className={synClass[l.type] || ''}>{l.type === 'string' ? `"${truncate(l.value)}"` : String(l.value)}</span>
+          <span className={synClass[l.type] || ''}>{l.type === 'string' ? `"${data.fit ? l.value : truncate(l.value)}"` : String(l.value)}</span>
         </div>
       ))}
       <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
@@ -78,6 +80,8 @@ function FlowInner() {
   const theme = useJsonStore(s => s.theme);
   const flowWarned = useJsonStore(s => s.flowWarned);
   const setFlowWarned = useJsonStore(s => s.setFlowWarned);
+  const flowFit = useJsonStore(s => s.flowFit);
+  const toggleFlowFit = useJsonStore(s => s.toggleFlowFit);
   const setFlowCollapsedMap = useJsonStore(s => s.setFlowCollapsedMap);
   const matches = useJsonStore(s => s.jsonPathMatches);
   const setSelectedPath = useJsonStore(s => s.setSelectedPath);
@@ -93,7 +97,7 @@ function FlowInner() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const { fitView } = useReactFlow();
 
-  const built = useMemo(() => buildFlow(parsedValue, collapsed), [parsedValue, collapsed]);
+  const built = useMemo(() => buildFlow(parsedValue, collapsed, flowFit), [parsedValue, collapsed, flowFit]);
   const matchSet = useMemo(() => new Set(matches), [matches]);
 
   const gate = built.count > 300 && !flowWarned;
@@ -124,7 +128,9 @@ function FlowInner() {
     setEdges(styledEdges);
     // Only re-fit when the graph's shape actually changed — otherwise typing in
     // the side panel would yank the viewport on every keystroke.
-    const sig = `${direction}|${laid.map(n => n.id).join(',')}`;
+    // Node sizes change with `fit`, so it belongs in the signature — otherwise
+    // the viewport keeps a framing that no longer matches the graph.
+    const sig = `${direction}|${flowFit}|${laid.map(n => n.id).join(',')}`;
     if (sig === lastSig.current) return;
     lastSig.current = sig;
     const t = setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 60);
@@ -167,6 +173,11 @@ function FlowInner() {
           <button onClick={expandAll} style={ovBtn}>{isMobile ? 'Expand' : 'Expand all'}</button>
           <button onClick={collapseAll} style={ovBtn}>{isMobile ? 'Collapse' : 'Collapse all'}</button>
           <button onClick={() => setDirection(d => d === 'LR' ? 'TB' : 'LR')} style={ovBtn} title="Toggle layout direction">{direction === 'LR' ? (isMobile ? '↔' : 'Horizontal') : (isMobile ? '↕' : 'Vertical')}</button>
+          <button onClick={toggleFlowFit}
+            title={flowFit ? 'Clip long values to a uniform node width' : 'Grow nodes to show full keys and values'}
+            style={flowFit ? { ...ovBtn, borderColor: 'var(--accent)', background: 'var(--accent-soft)', color: 'var(--accent)' } : ovBtn}>
+            {isMobile ? 'Full' : 'Full text'}
+          </button>
           <button onClick={() => fitView({ padding: 0.2, duration: 300 })} style={ovBtn}>Fit</button>
         </div>
         {built.truncated && (
