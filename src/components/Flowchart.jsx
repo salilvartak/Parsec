@@ -9,6 +9,7 @@ import { json } from '@codemirror/lang-json';
 import { useJsonStore, useRawText } from '../store/useJsonStore.js';
 import { cmExtensions } from '../lib/cmTheme.js';
 import { buildFlow, layout } from '../lib/flow.js';
+import { buildSvg, downloadSvg, printSvg } from '../lib/flowExport.js';
 import { useIsMobile } from '../lib/useMedia.js';
 
 const PANEL_W = 380;
@@ -85,6 +86,7 @@ function FlowInner() {
   const setFlowCollapsedMap = useJsonStore(s => s.setFlowCollapsedMap);
   const matches = useJsonStore(s => s.jsonPathMatches);
   const setSelectedPath = useJsonStore(s => s.setSelectedPath);
+  const activeDocName = useJsonStore(s => s.documents.find(d => d.id === s.activeDocId)?.name);
 
   const rawText = useRawText();
   const setRawText = useJsonStore(s => s.setRawText);
@@ -92,6 +94,8 @@ function FlowInner() {
 
   const [direction, setDirection] = useState('LR');
   const [panelOpen, setPanelOpen] = useState(false); // closed by default
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportNote, setExportNote] = useState('');
   const [animating, setAnimating] = useState(false);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -150,6 +154,23 @@ function FlowInner() {
   const expandAll = () => setFlowCollapsedMap({});
   const collapseAll = () => setFlowCollapsedMap(allBranchPaths(parsedValue));
 
+  const flash = (msg) => { setExportNote(msg); setTimeout(() => setExportNote(''), 2600); };
+
+  // Export from the live `nodes` state rather than rebuilding the layout, so
+  // anything the user dragged is preserved in the file.
+  const doExport = (kind) => {
+    setExportOpen(false);
+    const svg = buildSvg(nodes, edges, direction);
+    if (!svg) { flash('Nothing to export.'); return; }
+    if (kind === 'svg') {
+      downloadSvg(svg, `${(activeDocName || 'flowchart').replace(/\.\w+$/, '')}.svg`);
+      return;
+    }
+    if (!printSvg(svg, activeDocName || 'Flowchart')) {
+      flash('Allow pop-ups for this site to print or save as PDF.');
+    }
+  };
+
   // The graph pane swaps between states, but the JSON side panel always stays
   // mounted — otherwise a typo in the panel would delete the editor fixing it.
   let graphPane;
@@ -179,7 +200,39 @@ function FlowInner() {
             {isMobile ? 'Full' : 'Full text'}
           </button>
           <button onClick={() => fitView({ padding: 0.2, duration: 300 })} style={ovBtn}>Fit</button>
+
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setExportOpen(o => !o)} style={exportOpen ? { ...ovBtn, borderColor: 'var(--accent)', color: 'var(--accent)' } : ovBtn}>
+              Export{!isMobile && ' ▾'}
+            </button>
+            {exportOpen && (
+              <>
+                {/* Full-screen catcher: the graph canvas swallows clicks, so a
+                    plain document listener never sees the outside click. */}
+                <div onClick={() => setExportOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9 }} />
+                <div style={{
+                  position: 'absolute', top: 34, left: 0, zIndex: 10, minWidth: 190,
+                  background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8,
+                  boxShadow: '0 8px 24px rgba(0,0,0,.16)', overflow: 'hidden',
+                }}>
+                  <button onClick={() => doExport('svg')} style={menuItem}>Download SVG</button>
+                  <button onClick={() => doExport('pdf')} style={{ ...menuItem, borderBottom: 'none' }}>
+                    Print / Save as PDF
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
+
+        {exportNote && (
+          <div style={{
+            position: 'absolute', top: 52, left: 10, zIndex: 7,
+            background: 'var(--changed-bg)', color: 'var(--syn-key)',
+            border: '1px solid var(--border)', borderRadius: 7, padding: '6px 12px',
+            font: "500 11.5px 'Inter',sans-serif", maxWidth: 320,
+          }}>{exportNote}</div>
+        )}
         {built.truncated && (
           <div style={{ position: 'absolute', ...(isMobile ? { bottom: 12, right: 12 } : { top: 12, right: 12 }), zIndex: 6, background: 'var(--changed-bg)', color: 'var(--syn-key)', border: '1px solid var(--border)', borderRadius: 7, padding: '6px 12px', font: "500 11.5px 'Inter',sans-serif" }}>
             Graph truncated to {built.count} nodes.
@@ -278,4 +331,5 @@ function Center({ children }) {
 }
 
 const ovBtn = { border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 6, padding: '5px 11px', font: "500 11.5px 'Inter',sans-serif", color: 'var(--text)', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,.08)' };
+const menuItem = { display: 'block', width: '100%', textAlign: 'left', border: 'none', borderBottom: '1px solid var(--border)', background: 'transparent', padding: '9px 12px', cursor: 'pointer', font: "500 12px 'Inter',sans-serif", color: 'var(--text)' };
 const primaryBtn = { border: '1px solid var(--border)', background: 'var(--accent)', color: 'var(--accent-fg)', borderRadius: 7, padding: '8px 16px', font: "500 12.5px 'Inter',sans-serif", cursor: 'pointer' };

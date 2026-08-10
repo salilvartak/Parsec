@@ -29,10 +29,27 @@ const MIN_CHARS = 8;       // guard so a pathological width can't divide by ~0
 
 // The text a leaf row renders, used for width and wrap calculations. Must stay
 // in step with the JSX in Flowchart.jsx.
-function leafText(l) {
+export function leafText(l) {
   const key = l.key === '' ? '' : `${l.key}: `;
   return key + (l.type === 'string' ? `"${l.value}"` : String(l.value));
 }
+
+// How many characters fit on one line inside a node of this width, and the
+// resulting wrapped rows. Exported so the SVG export wraps text exactly the way
+// the rendered node does — computing it twice would let the two drift apart.
+export function charsPerLine(width) {
+  return Math.max(MIN_CHARS, Math.floor((width - PAD_X) / WRAP_CHAR_W));
+}
+
+export function wrapLeaf(text, width) {
+  const per = charsPerLine(width);
+  if (text.length <= per) return [text];
+  const rows = [];
+  for (let i = 0; i < text.length; i += per) rows.push(text.slice(i, i + per));
+  return rows;
+}
+
+export const NODE_METRICS = { HEAD_H, LEAF_H, PAD, PAD_X, NODE_W };
 
 export function buildFlow(value, collapsed = {}, fit = false) {
   const nodes = [];
@@ -52,7 +69,7 @@ export function buildFlow(value, collapsed = {}, fit = false) {
     const widest = texts.reduce((max, t) => Math.max(max, t.length * CHAR_W_LEAF), 0);
     const width = Math.min(MAX_FIT_W, Math.max(NODE_W, Math.ceil(Math.max(headW, widest)) + PAD_X));
 
-    const perLine = Math.max(MIN_CHARS, Math.floor((width - PAD_X) / WRAP_CHAR_W));
+    const perLine = charsPerLine(width);
     const rows = texts.reduce((n, t) => n + Math.max(1, Math.ceil(t.length / perLine)), 0);
     return { width, height: HEAD_H + rows * LEAF_H + PAD };
   }
