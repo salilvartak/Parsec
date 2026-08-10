@@ -5,14 +5,19 @@
 // daily pool so one user cannot drain it by 9am and leave the feature dead for
 // everyone else.
 //
-// Three counters, all in Redis so they hold across serverless instances:
+// Three counters, held in Redis when it's configured so they survive across
+// serverless instances:
 //   global:day    — the real ceiling. Cannot be bypassed.
 //   global:minute — smooths bursts so we hit our own limit instead of Google's.
 //   user:day      — soft per-user fairness. Bypassable by clearing a cookie;
 //                   that is acceptable because the global cap is behind it.
+//
+// Without Redis the same counters live in process memory, which means each
+// serverless instance counts alone — see createStore below for when that is
+// and isn't an acceptable trade.
 
 import { Redis } from '@upstash/redis';
-import { globalDailyCap, globalMinuteCap, PER_USER_DAILY, COOLDOWN_SECONDS } from './config.js';
+import { globalDailyCap, globalMinuteCap, PER_USER_DAILY, COOLDOWN_SECONDS, requireSharedLimiter } from './config.js';
 
 // Thrown when the limiter cannot run safely. Distinct from a runtime failure so
 // the handler can report it as a setup problem rather than a generic outage.
@@ -31,23 +36,34 @@ function getStore() {
 
 // Upstash when it's configured, an in-memory map otherwise.
 //
-// The fallback exists so `vercel dev` works before you've provisioned Redis —
-// it is NOT viable in production: every serverless instance gets its own map,
-// so the counters fragment and the global cap stops being global. Guarded on
-// the Vercel production flag rather than trusted to a comment.
-function createStore() {
-  const configured = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
-  if (configured) return Redis.fromEnv();
+// Serverless instances don't share memory, so the fallback enforces the caps
+// per-instance rather than per-project. Whether that is acceptable depends on
+// what an over-run costs — see REQUIRE_SHARED_LIMITER in config.js. On a free
+// tier with no billing it only means the daily quota drains sooner; with
+// billing enabled it means an unbounded spend, so the flag refuses to start.
+export const usingSharedStore = () =>
+  !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
 
-  if (process.env.VERCEL_ENV === 'production') {
+function createStore() {
+  if (usingSharedStore()) return Redis.fromEnv();
+
+  if (requireSharedLimiter()) {
     throw new LimiterConfigError(
-      'Upstash Redis is not configured. Add the Upstash integration in the Vercel dashboard ' +
-      '(Storage → Upstash Redis) and connect it to this project. The in-memory limiter cannot ' +
-      'enforce a shared quota across serverless instances, so it is refused in production.',
+      'Upstash Redis is not configured, and REQUIRE_SHARED_LIMITER is set. Add the Upstash ' +
+      'integration in the Vercel dashboard (Storage → Upstash Redis) and connect it to this ' +
+      'project — with billing enabled, a per-instance limiter cannot bound spend.',
     );
   }
 
-  console.warn('[limit] Upstash not configured — using in-memory counters (dev only, not shared across instances).');
+  if (process.env.VERCEL_ENV === 'production') {
+    console.warn(
+      '[limit] Upstash not configured — counting per-instance, so the global daily cap is ' +
+      'approximate. Acceptable only while the Google project has no billing attached; set ' +
+      'REQUIRE_SHARED_LIMITER=true once it does.',
+    );
+  } else {
+    console.warn('[limit] Upstash not configured — using in-memory counters (not shared across instances).');
+  }
   return memoryStore();
 }
 

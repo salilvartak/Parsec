@@ -30,6 +30,22 @@ export const PER_USER_DAILY = 10;
 // clear a per-minute window.
 export const COOLDOWN_SECONDS = 90;
 
+// Whether a shared counter store (Upstash Redis) is mandatory in production.
+//
+// Serverless instances don't share memory, so without Redis each instance
+// counts on its own and the global cap is enforced per-instance rather than
+// per-project. On the FREE tier that degradation is tolerable: there is no
+// billing attached, so the worst case is the daily quota draining sooner and
+// Google returning 429s, which trips the cooldown in limit.js. The user sees
+// "AI busy" instead of a bill.
+//
+// Turn this on the moment billing is enabled on the Google project. At that
+// point an unenforced cap costs real money, and refusing to start is much
+// better than discovering the problem on an invoice.
+// Read on each call rather than captured at import: a module-load snapshot is
+// invisible to tests and silently stale if anything sets the variable late.
+export const requireSharedLimiter = () => process.env.REQUIRE_SHARED_LIMITER === 'true';
+
 // Reject oversized documents before they cost a request. 100KB of JSON is far
 // past the point where a repair is useful anyway.
 export const MAX_INPUT_BYTES = 100_000;
