@@ -100,11 +100,6 @@ export const useJsonStore = create((set, get) => ({
   // history
   history: loadHistory(),
 
-  // AI requests left today, as last reported by the proxy. null until the first
-  // call — we deliberately don't probe the endpoint on load just to show a
-  // number, since that would spend quota to display quota.
-  aiRemaining: null,
-
   // large-doc flag
   isLarge: init.text.length > LARGE_DOC,
 
@@ -249,9 +244,6 @@ export const useJsonStore = create((set, get) => ({
 
   // ---- markdown ----
   setMarkdownText: (markdownText) => set({ markdownText }),
-
-  // ---- ai ----
-  setAiRemaining: (aiRemaining) => set({ aiRemaining }),
 
   // ---- history ----
   pushHistory: () => set(s => {

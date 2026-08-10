@@ -86,12 +86,12 @@ export function findDuplicateKeys(text) {
 }
 
 // Sorted array of line-start offsets, for O(log n) offset → line lookups.
-export function buildLineIndex(text) {
+function buildLineIndex(text) {
   const starts = [0];
   for (let i = 0; i < text.length; i++) if (text[i] === '\n') starts.push(i + 1);
   return starts;
 }
-export function offsetToLine(starts, offset) {
+function offsetToLine(starts, offset) {
   let lo = 0, hi = starts.length - 1;
   while (lo < hi) {
     const mid = (lo + hi + 1) >> 1;
