@@ -7,7 +7,9 @@ export const DEFAULT_SETTINGS = {
   indent: 2,                 // 2 | 4 | 'tab'
   sortKeys: false,           // sort object keys on Format
   // editor
-  fontSize: 12.5,            // px, 11–17
+  fontSize: 13,              // px, 11–17. Must match one of the size chips in
+                             // SettingsPanel, or the default shows as a size
+                             // the user cannot pick back after changing it.
   lineWrap: false,
   lineNumbers: true,
   foldGutter: true,
@@ -72,7 +74,11 @@ export function saveSettings(s) {
 function sanitize(s) {
   const out = { ...s };
   if (![2, 4, 'tab'].includes(out.indent)) out.indent = 2;
-  out.fontSize = Math.min(17, Math.max(11, Number(out.fontSize) || 12.5));
+  // 12.5 was the old default and sat between the S and M chips. The panel only
+  // ever writes whole numbers, so a stored 12.5 is always the inherited default
+  // rather than a deliberate choice — snap it onto the scale.
+  if (Number(out.fontSize) === 12.5) out.fontSize = 13;
+  out.fontSize = Math.min(17, Math.max(11, Number(out.fontSize) || 13));
   out.treeDepth = Math.min(6, Math.max(0, Math.round(Number(out.treeDepth) || 0)));
   if (!ACCENTS[out.accent]) out.accent = 'slate';
   if (!['comfortable', 'compact'].includes(out.density)) out.density = 'comfortable';
