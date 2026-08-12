@@ -12,6 +12,15 @@ const FONT_SIZES = [
   { v: 16, label: 'XXL' },
 ];
 
+// The stored size is a free number (11–17), so it need not be one of the chips
+// — a legacy value or the off-scale default still has to highlight exactly one.
+function nearestFontSize(size) {
+  return FONT_SIZES.reduce(
+    (best, o) => (Math.abs(o.v - size) < Math.abs(best.v - size) ? o : best),
+    FONT_SIZES[0],
+  ).v;
+}
+
 export default function SettingsPanel() {
   const s = useJsonStore(st => st.settings);
   const setSetting = useJsonStore(st => st.setSetting);
@@ -60,7 +69,12 @@ export default function SettingsPanel() {
         <Field label="Font size" value={`${s.fontSize}px`}>
           <div style={{ display: 'flex', gap: 6 }}>
             {FONT_SIZES.map(({ v, label }) => {
-              const active = Math.abs(s.fontSize - v) < 0.75;
+              // Nearest chip wins, rather than a tolerance around each one. The
+              // chips are 1px apart, so any tolerance of half a step or more
+              // matches two of them at once — which is what a stored 12.5 (the
+              // default, deliberately between S and M) used to do. Ties resolve
+              // to the smaller size, so exactly one chip is ever active.
+              const active = v === nearestFontSize(s.fontSize);
               return (
                 <button key={v} onClick={() => setSetting('fontSize', v)} title={`${v}px`}
                   style={{
